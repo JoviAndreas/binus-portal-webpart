@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "1629be01-dab4-4b21-8e5e-3974671f9017",
+  "alias": "DamsVblAdminWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "DAMS VBL Admin" },
+      "description": { "default": "Review, filter and edit DAMS VBL submissions. Admin allowlist enforced by the API." },
+      "officeFabricIconFontName": "ReviewSolid",
+      "properties": {
+        "apiBaseUrl": "https://uploadvbl.apps.binus.ac.id/api",
+        "apiResourceUri": "api://f3ce5232-7702-452f-b8a2-075adbf426fd"
+      }
+    }
+  ]
+}
