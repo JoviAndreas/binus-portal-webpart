@@ -3,8 +3,6 @@ declare interface IBinusHeroWebPartStrings {
   BasicGroupName: string;
   TitleLabel: string;
   SubtitleLabel: string;
-  CtaLabelLabel: string;
-  CtaUrlLabel: string;
 }
 declare module 'BinusHeroWebPartStrings' {
   const strings: IBinusHeroWebPartStrings;

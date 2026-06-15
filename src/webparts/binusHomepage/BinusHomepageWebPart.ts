@@ -10,15 +10,18 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import * as strings from 'BinusHomepageWebPartStrings';
 import { BinusHomepage, IBinusHomepageProps } from './components/BinusHomepage';
 import { injectTokens } from '../../shared/tokens';
+import { parseConfig, defaultConfigJson } from '../../shared/categoriesConfig';
+import { parseFeatured, defaultFeaturedJson } from '../../shared/featuredConfig';
 
 export interface IBinusHomepageWebPartProps {
   heroTitle: string;
   heroSubtitle: string;
-  ctaLabel: string;
-  ctaUrl: string;
   launcherHeading: string;
   launcherSubheading: string;
   listTitle: string;
+  newsListTitle: string;
+  categoriesJson: string;
+  featuredJson: string;
 }
 
 export default class BinusHomepageWebPart extends BaseClientSideWebPart<IBinusHomepageWebPartProps> {
@@ -29,15 +32,16 @@ export default class BinusHomepageWebPart extends BaseClientSideWebPart<IBinusHo
 
   public render(): void {
     const element: React.ReactElement<IBinusHomepageProps> = React.createElement(BinusHomepage, {
-      heroTitle: this.properties.heroTitle || 'Welcome to BINUS Portal',
-      heroSubtitle: this.properties.heroSubtitle || 'Your one-stop access to academics, services, and BINUS Group.',
-      ctaLabel: this.properties.ctaLabel || 'Explore apps',
-      ctaUrl: this.properties.ctaUrl || '#apps',
+      heroTitle: this.properties.heroTitle || 'Welcome to new BINUS Portal',
+      heroSubtitle: this.properties.heroSubtitle || '',
       launcherHeading: this.properties.launcherHeading || 'Application Link',
-      launcherSubheading: this.properties.launcherSubheading || 'Quick access to every BINUS service.',
+      launcherSubheading: this.properties.launcherSubheading || '',
       listTitle: this.properties.listTitle || 'Application Link',
+      newsListTitle: this.properties.newsListTitle || 'Site Pages',
       webUrl: this.context.pageContext.web.absoluteUrl,
-      spHttpClient: this.context.spHttpClient
+      spHttpClient: this.context.spHttpClient,
+      config: parseConfig(this.properties.categoriesJson),
+      featured: parseFeatured(this.properties.featuredJson)
     });
     ReactDom.render(element, this.domElement);
   }
@@ -60,9 +64,7 @@ export default class BinusHomepageWebPart extends BaseClientSideWebPart<IBinusHo
               groupName: strings.HeroGroupName,
               groupFields: [
                 PropertyPaneTextField('heroTitle', { label: strings.HeroTitleLabel }),
-                PropertyPaneTextField('heroSubtitle', { label: strings.HeroSubtitleLabel, multiline: true }),
-                PropertyPaneTextField('ctaLabel', { label: strings.CtaLabelLabel }),
-                PropertyPaneTextField('ctaUrl', { label: strings.CtaUrlLabel })
+                PropertyPaneTextField('heroSubtitle', { label: strings.HeroSubtitleLabel, multiline: true })
               ]
             },
             {
@@ -71,6 +73,37 @@ export default class BinusHomepageWebPart extends BaseClientSideWebPart<IBinusHo
                 PropertyPaneTextField('launcherHeading', { label: strings.LauncherHeadingLabel }),
                 PropertyPaneTextField('launcherSubheading', { label: strings.LauncherSubheadingLabel }),
                 PropertyPaneTextField('listTitle', { label: strings.ListTitleLabel })
+              ]
+            },
+            {
+              groupName: 'News',
+              groupFields: [
+                PropertyPaneTextField('newsListTitle', {
+                  label: 'News list title (empty to disable)',
+                  placeholder: 'Site Pages'
+                })
+              ]
+            },
+            {
+              groupName: 'Featured cards',
+              groupFields: [
+                PropertyPaneTextField('featuredJson', {
+                  label: 'Featured JSON (leave empty for defaults)',
+                  multiline: true,
+                  rows: 14,
+                  placeholder: defaultFeaturedJson().substring(0, 200) + '...'
+                })
+              ]
+            },
+            {
+              groupName: 'Categories',
+              groupFields: [
+                PropertyPaneTextField('categoriesJson', {
+                  label: 'Categories JSON (leave empty for defaults)',
+                  multiline: true,
+                  rows: 14,
+                  placeholder: defaultConfigJson().substring(0, 200) + '...'
+                })
               ]
             }
           ]

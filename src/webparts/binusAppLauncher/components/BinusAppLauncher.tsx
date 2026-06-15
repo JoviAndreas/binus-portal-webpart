@@ -1,8 +1,11 @@
 import * as React from 'react';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { tokens } from '../../../shared/tokens';
-import { IAppLink, AppCategory } from '../../../shared/types';
+import { IAppLink } from '../../../shared/types';
 import { AppLinkService } from '../../../shared/AppLinkService';
+import { Icon, IconName } from '../../../shared/Icon';
+import { ICategoriesConfig } from '../../../shared/categoriesConfig';
+import { Shimmer, Underline } from '../../../shared/LoadingFX';
 
 export interface IBinusAppLauncherProps {
   heading: string;
@@ -10,31 +13,8 @@ export interface IBinusAppLauncherProps {
   listTitle: string;
   webUrl: string;
   spHttpClient: SPHttpClient;
+  config: ICategoriesConfig;
 }
-
-const CAT_ORDER: AppCategory[] = [
-  'Academic',
-  'Student',
-  'Faculty & Staff',
-  'Finance',
-  'Library',
-  'Schools',
-  'BINUS Group',
-  'Tools',
-  'Other'
-];
-
-const CAT_ACCENT: Record<AppCategory, string> = {
-  Academic: tokens.color.blue,
-  Student: tokens.color.blueLight,
-  'Faculty & Staff': tokens.color.blueDark,
-  Finance: '#2BAE66',
-  Library: '#8E44AD',
-  Schools: tokens.color.orange,
-  'BINUS Group': tokens.color.orangeDark,
-  Tools: '#6B7280',
-  Other: '#9CA3AF'
-};
 
 const chipStyle = (active: boolean, color: string): React.CSSProperties => ({
   border: `1px solid ${active ? color : tokens.color.border}`,
@@ -57,16 +37,14 @@ const iconStyle = (color: string): React.CSSProperties => ({
   color,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: 14
+  justifyContent: 'center'
 });
 
 const styles: { [k: string]: React.CSSProperties } = {
   root: { padding: '32px 8px', background: tokens.color.bg },
   header: { maxWidth: 1200, margin: '0 auto 22px', padding: '0 8px' },
-  heading: { fontSize: 28, marginBottom: 6, color: tokens.color.textDark },
-  sub: { color: tokens.color.text, fontSize: 15 },
+  heading: { fontSize: 26, marginBottom: 6, color: tokens.color.textDark },
+  sub: { color: tokens.color.text, fontSize: 14 },
   toolbar: {
     maxWidth: 1200,
     margin: '0 auto 18px',
@@ -76,15 +54,18 @@ const styles: { [k: string]: React.CSSProperties } = {
     alignItems: 'center',
     flexWrap: 'wrap'
   },
+  searchWrap: { flex: '1 1 280px', position: 'relative', display: 'flex', alignItems: 'center' },
+  searchIcon: { position: 'absolute', left: 14, color: tokens.color.text, pointerEvents: 'none' },
   search: {
-    flex: '1 1 280px',
-    padding: '11px 14px 11px 38px',
+    width: '100%',
+    padding: '11px 14px 11px 40px',
     border: `1px solid ${tokens.color.border}`,
     borderRadius: tokens.radius.pill,
-    background: `${tokens.color.bgSoft} url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="%235E5E5E" stroke-width="2"><circle cx="7" cy="7" r="5"/><path d="m15 15-3-3"/></svg>') no-repeat 14px center`,
+    background: tokens.color.bgSoft,
     fontSize: 14,
     outline: 'none',
-    fontFamily: tokens.font.family
+    fontFamily: tokens.font.family,
+    color: tokens.color.textDark
   },
   chips: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   catBlock: { maxWidth: 1200, margin: '0 auto', padding: '24px 8px 0' },
@@ -94,10 +75,9 @@ const styles: { [k: string]: React.CSSProperties } = {
     gap: 10,
     marginBottom: 14,
     color: tokens.color.textDark,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 700
   },
-  catDot: { width: 10, height: 10, borderRadius: 2 },
   catCount: { color: tokens.color.text, fontSize: 13, fontWeight: 500 },
   grid: {
     display: 'grid',
@@ -117,44 +97,11 @@ const styles: { [k: string]: React.CSSProperties } = {
     transition: 'transform .15s ease, box-shadow .15s ease, border-color .15s ease'
   },
   tileBody: { display: 'flex', flexDirection: 'column', minWidth: 0 },
-  tileTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: tokens.color.textDark,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-  },
-  tileHost: {
-    fontSize: 11,
-    color: tokens.color.text,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-  },
+  tileTitle: { fontSize: 14, fontWeight: 600, color: tokens.color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  tileHost: { fontSize: 11, color: tokens.color.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   loading: { textAlign: 'center', padding: 48, color: tokens.color.text },
-  err: {
-    textAlign: 'center',
-    padding: 24,
-    color: '#B91C1C',
-    background: '#FEE2E2',
-    borderRadius: tokens.radius.md,
-    maxWidth: 600,
-    margin: '0 auto'
-  }
+  err: { textAlign: 'center', padding: 24, color: '#B91C1C', background: '#FEE2E2', borderRadius: tokens.radius.md, maxWidth: 600, margin: '0 auto' }
 };
-
-function initials(s: string): string {
-  return s
-    .replace(/binus/i, '')
-    .replace(/[^A-Za-z ]/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'B';
-}
 
 function host(u: string): string {
   try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; }
@@ -165,80 +112,98 @@ export const BinusAppLauncher: React.FC<IBinusAppLauncherProps> = (props) => {
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState<string | null>(null);
   const [q, setQ] = React.useState('');
-  const [activeCat, setActiveCat] = React.useState<AppCategory | 'All'>('All');
+  const [activeCat, setActiveCat] = React.useState<string>('all');
 
   React.useEffect(() => {
     let alive = true;
-    AppLinkService.load(props.spHttpClient, props.webUrl, props.listTitle)
+    AppLinkService.load(props.spHttpClient, props.webUrl, props.listTitle, props.config)
       .then((d) => alive && (setItems(d), setLoading(false)))
       .catch((e) => alive && (setErr(String(e?.message || e)), setLoading(false)));
     return () => { alive = false; };
-  }, [props.webUrl, props.listTitle]);
+  }, [props.webUrl, props.listTitle, props.config]);
 
   const filtered = React.useMemo(() => {
     const qq = q.trim().toLowerCase();
     return items.filter((i) => {
-      if (activeCat !== 'All' && i.category !== activeCat) return false;
+      if (activeCat !== 'all' && i.category.key !== activeCat) return false;
       if (!qq) return true;
       return i.title.toLowerCase().includes(qq) || i.url.toLowerCase().includes(qq);
     });
   }, [items, q, activeCat]);
 
+  const order = React.useMemo(() => [...props.config.categories.map((c) => c.key), 'other'], [props.config]);
+
   const byCat = React.useMemo(() => {
-    const map = new Map<AppCategory, IAppLink[]>();
+    const map = new Map<string, IAppLink[]>();
     for (const i of filtered) {
-      const a = map.get(i.category) || [];
+      const a = map.get(i.category.key) || [];
       a.push(i);
-      map.set(i.category, a);
+      map.set(i.category.key, a);
     }
     return map;
   }, [filtered]);
 
-  const cats = CAT_ORDER.filter((c) => (byCat.get(c) || []).length);
-
   return (
     <section className="bp-root" id="apps" style={styles.root}>
       <div style={styles.header}>
-        <h2 style={styles.heading}>{props.heading}</h2>
-        <p style={styles.sub}>{props.subheading}</p>
+        <h2 style={styles.heading}><Underline>{props.heading}</Underline></h2>
+        {props.subheading && <p style={styles.sub}>{props.subheading}</p>}
       </div>
       <div style={styles.toolbar}>
-        <input
-          style={styles.search}
-          placeholder={`Search ${items.length} apps…`}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <div style={styles.searchWrap}>
+          <span style={styles.searchIcon}><Icon name="search" size={16} /></span>
+          <input style={styles.search} placeholder="Search apps" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
         <div style={styles.chips}>
           <button
-            style={chipStyle(activeCat === 'All', tokens.color.blueDark)}
-            onClick={() => setActiveCat('All')}
+            style={chipStyle(activeCat === 'all', tokens.color.blueDark)}
+            onClick={() => setActiveCat('all')}
           >All</button>
-          {CAT_ORDER.map((c) => {
-            const count = items.filter((i) => i.category === c).length;
+          {props.config.categories.map((c) => {
+            const count = items.filter((i) => i.category.key === c.key).length;
             if (!count) return null;
+            const active = activeCat === c.key;
             return (
-              <button
-                key={c}
-                style={chipStyle(activeCat === c, CAT_ACCENT[c])}
-                onClick={() => setActiveCat(c)}
-              >{c} <span style={{ opacity: 0.65, marginLeft: 4 }}>{count}</span></button>
+              <button key={c.key} style={chipStyle(active, c.color)} onClick={() => setActiveCat(c.key)}>
+                {c.label} <span style={{ opacity: 0.65, marginLeft: 4 }}>{count}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {loading && <div style={styles.loading}>Loading apps…</div>}
+      {loading && (
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '8px 8px 0' }}>
+          <div style={styles.grid}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Shimmer key={i} height={66} />
+            ))}
+          </div>
+        </div>
+      )}
       {err && <div style={styles.err}>Failed to load: {err}</div>}
 
-      {!loading && !err && cats.map((c) => {
-        const list = byCat.get(c) || [];
+      {!loading && !err && order.map((key) => {
+        const list = byCat.get(key) || [];
+        if (!list.length) return null;
+        const cat = list[0].category;
         return (
-          <div key={c} style={styles.catBlock}>
+          <div key={key} style={styles.catBlock}>
             <div style={styles.catHead}>
-              <span style={{ ...styles.catDot, background: CAT_ACCENT[c] }} />
-              {c}
-              <span style={styles.catCount}>· {list.length}</span>
+              <span style={{
+                display: 'inline-flex',
+                width: 26,
+                height: 26,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 7,
+                background: `${cat.color}1A`,
+                color: cat.color
+              }}>
+                <Icon name={cat.icon as IconName} size={14} strokeWidth={2} />
+              </span>
+              {cat.label}
+              <span style={styles.catCount}>{list.length}</span>
             </div>
             <div style={styles.grid}>
               {list.map((i) => (
@@ -252,7 +217,7 @@ export const BinusAppLauncher: React.FC<IBinusAppLauncherProps> = (props) => {
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-2px)';
                     (e.currentTarget as HTMLAnchorElement).style.boxShadow = tokens.shadow.md;
-                    (e.currentTarget as HTMLAnchorElement).style.borderColor = CAT_ACCENT[c];
+                    (e.currentTarget as HTMLAnchorElement).style.borderColor = cat.color;
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLAnchorElement).style.transform = '';
@@ -260,7 +225,9 @@ export const BinusAppLauncher: React.FC<IBinusAppLauncherProps> = (props) => {
                     (e.currentTarget as HTMLAnchorElement).style.borderColor = tokens.color.border;
                   }}
                 >
-                  <span style={iconStyle(CAT_ACCENT[c])}>{initials(i.title)}</span>
+                  <span style={iconStyle(cat.color)}>
+                    <Icon name={cat.icon as IconName} size={18} strokeWidth={2} />
+                  </span>
                   <span style={styles.tileBody}>
                     <span style={styles.tileTitle}>{i.title}</span>
                     <span style={styles.tileHost}>{host(i.url)}</span>

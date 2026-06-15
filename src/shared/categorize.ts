@@ -1,20 +1,41 @@
-import { AppCategory } from './types';
+import { ICategoriesConfig } from './categoriesConfig';
 
-const RULES: Array<{ test: RegExp; cat: AppCategory }> = [
-  { test: /binusmaya|newbinusmaya|online ?learning|\bol\b|bulc|ol\.binus|onlinelearning|lms/i, cat: 'Academic' },
-  { test: /admission|payment|scdc|student|parent|graduate|doctorate|enrichment|hsep|alumni/i, cat: 'Student' },
-  { test: /human ?capital|\bhc\b|employee|recruitment|rectorate|staff|corporate ?learning|professional ?development|teaching|teach for/i, cat: 'Faculty & Staff' },
-  { test: /finance|budget|payment|payroll/i, cat: 'Finance' },
-  { test: /library|web library/i, cat: 'Library' },
-  { test: /school|simprug|serpong|bekasi|kalbis|kindergarten|m-?sis|cbt|cbl|antrian|queue|boarders|e-?desk|desk/i, cat: 'Schools' },
-  { test: /university|binus group|binus\.edu|binus\.ac\.id|binus square|business school|research|international|extension|consulting|creates|center|biduk|ayosekolah|rise/i, cat: 'BINUS Group' },
-  { test: /portal|km|yammer|mail|general affair|gfservice|career|expo|certified|legal|lost and found|marketing|monitoring|government|akreditasi|questionnaire|tv wall|qmc|sac|collaboration|pos|room reservation|cms|ami|english language|megastore|website|bsis|ops|admission online/i, cat: 'Tools' }
-];
+export interface IResolvedCategory {
+  key: string;
+  label: string;
+  color: string;
+  icon: string;
+}
 
-export function categorize(title: string, url?: string): AppCategory {
-  const hay = `${title} ${url || ''}`;
-  for (const r of RULES) if (r.test.test(hay)) return r.cat;
-  return 'Other';
+export function categorize(
+  title: string,
+  url: string,
+  cfg: ICategoriesConfig
+): IResolvedCategory {
+  const hay = `${title} ${url}`.toLowerCase();
+  const titleLower = title.toLowerCase().trim();
+  const overrideKey = cfg.overrides[titleLower];
+  if (overrideKey) {
+    const c = cfg.categories.find((x) => x.key === overrideKey);
+    if (c) return { key: c.key, label: c.label, color: c.color, icon: c.icon };
+  }
+  for (const c of cfg.categories) {
+    for (const m of c.match) {
+      try {
+        if (new RegExp(m, 'i').test(hay)) {
+          return { key: c.key, label: c.label, color: c.color, icon: c.icon };
+        }
+      } catch {
+        /* invalid regex, skip */
+      }
+    }
+  }
+  return {
+    key: 'other',
+    label: cfg.otherLabel || 'Other',
+    color: cfg.otherColor || '#6B7280',
+    icon: cfg.otherIcon || 'grid'
+  };
 }
 
 export function normalizeUrl(u: string): string {

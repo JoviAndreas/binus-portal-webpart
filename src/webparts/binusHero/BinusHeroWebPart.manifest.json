@@ -17,10 +17,9 @@
       "description": { "default": "Featured hero banner styled to match binus.ac.id." },
       "officeFabricIconFontName": "FlashOn",
       "properties": {
-        "title": "Welcome to BINUS Portal",
-        "subtitle": "Your one-stop access to academics, services, and BINUS Group.",
-        "ctaLabel": "Explore apps",
-        "ctaUrl": "#apps"
+        "title": "Welcome to new BINUS Portal",
+        "subtitle": "",
+        "featuredJson": ""
       }
     }
   ]

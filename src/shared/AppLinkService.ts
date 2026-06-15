@@ -1,6 +1,7 @@
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { IAppLink } from './types';
 import { categorize, dedupKey, normalizeUrl } from './categorize';
+import { ICategoriesConfig } from './categoriesConfig';
 
 interface ISpAppLinkRaw {
   Id: number;
@@ -15,7 +16,8 @@ export class AppLinkService {
   public static async load(
     client: SPHttpClient,
     webUrl: string,
-    listTitle = 'Application Link'
+    listTitle: string,
+    config: ICategoriesConfig
   ): Promise<IAppLink[]> {
     const url =
       `${webUrl}/_api/web/lists/getbytitle('${encodeURIComponent(listTitle)}')` +
@@ -50,10 +52,10 @@ export class AppLinkService {
         title: r.Title?.trim() || link,
         url: url2,
         thumbnail: thumb,
-        category: categorize(r.Title || '', url2)
+        category: categorize(r.Title || '', url2, config)
       });
     }
-    out.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
+    out.sort((a, b) => a.category.label.localeCompare(b.category.label) || a.title.localeCompare(b.title));
     return out;
   }
 }

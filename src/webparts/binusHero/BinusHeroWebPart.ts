@@ -10,12 +10,12 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import * as strings from 'BinusHeroWebPartStrings';
 import { BinusHero, IBinusHeroProps } from './components/BinusHero';
 import { injectTokens } from '../../shared/tokens';
+import { parseFeatured, defaultFeaturedJson } from '../../shared/featuredConfig';
 
 export interface IBinusHeroWebPartProps {
   title: string;
   subtitle: string;
-  ctaLabel: string;
-  ctaUrl: string;
+  featuredJson: string;
 }
 
 export default class BinusHeroWebPart extends BaseClientSideWebPart<IBinusHeroWebPartProps> {
@@ -26,12 +26,9 @@ export default class BinusHeroWebPart extends BaseClientSideWebPart<IBinusHeroWe
 
   public render(): void {
     const element: React.ReactElement<IBinusHeroProps> = React.createElement(BinusHero, {
-      title: this.properties.title || 'Welcome to BINUS Portal',
-      subtitle:
-        this.properties.subtitle ||
-        'Your one-stop access to academics, services, and BINUS Group.',
-      ctaLabel: this.properties.ctaLabel || 'Explore apps',
-      ctaUrl: this.properties.ctaUrl || '#apps'
+      title: this.properties.title || 'Welcome to new BINUS Portal',
+      subtitle: this.properties.subtitle || '',
+      featured: parseFeatured(this.properties.featuredJson)
     });
     ReactDom.render(element, this.domElement);
   }
@@ -54,9 +51,18 @@ export default class BinusHeroWebPart extends BaseClientSideWebPart<IBinusHeroWe
               groupName: strings.BasicGroupName,
               groupFields: [
                 PropertyPaneTextField('title', { label: strings.TitleLabel }),
-                PropertyPaneTextField('subtitle', { label: strings.SubtitleLabel, multiline: true }),
-                PropertyPaneTextField('ctaLabel', { label: strings.CtaLabelLabel }),
-                PropertyPaneTextField('ctaUrl', { label: strings.CtaUrlLabel })
+                PropertyPaneTextField('subtitle', { label: strings.SubtitleLabel, multiline: true })
+              ]
+            },
+            {
+              groupName: 'Featured cards',
+              groupFields: [
+                PropertyPaneTextField('featuredJson', {
+                  label: 'Featured JSON (leave empty for defaults)',
+                  multiline: true,
+                  rows: 14,
+                  placeholder: defaultFeaturedJson().substring(0, 200) + '...'
+                })
               ]
             }
           ]

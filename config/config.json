@@ -25,12 +25,21 @@
           "manifest": "./src/webparts/binusHomepage/BinusHomepageWebPart.manifest.json"
         }
       ]
+    },
+    "binus-pages-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/binusPages/BinusPagesWebPart.js",
+          "manifest": "./src/webparts/binusPages/BinusPagesWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
   "localizedResources": {
     "BinusHeroWebPartStrings": "lib/webparts/binusHero/loc/{locale}.js",
     "BinusAppLauncherWebPartStrings": "lib/webparts/binusAppLauncher/loc/{locale}.js",
-    "BinusHomepageWebPartStrings": "lib/webparts/binusHomepage/loc/{locale}.js"
+    "BinusHomepageWebPartStrings": "lib/webparts/binusHomepage/loc/{locale}.js",
+    "BinusPagesWebPartStrings": "lib/webparts/binusPages/loc/{locale}.js"
   }
 }

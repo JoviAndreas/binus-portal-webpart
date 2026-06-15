@@ -14,16 +14,17 @@
       "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
       "group": { "default": "BINUS Portal" },
       "title": { "default": "BINUS Homepage" },
-      "description": { "default": "Full BINUS Portal homepage — hero, announcements, and app launcher." },
+      "description": { "default": "Full BINUS Portal homepage: hero, announcements, and app launcher." },
       "officeFabricIconFontName": "Home",
       "properties": {
-        "heroTitle": "Welcome to BINUS Portal",
-        "heroSubtitle": "Your one-stop access to academics, services, and BINUS Group.",
-        "ctaLabel": "Explore apps",
-        "ctaUrl": "#apps",
+        "heroTitle": "Welcome to new BINUS Portal",
+        "heroSubtitle": "",
         "launcherHeading": "Application Link",
-        "launcherSubheading": "Quick access to every BINUS service.",
-        "listTitle": "Application Link"
+        "launcherSubheading": "",
+        "listTitle": "Application Link",
+        "newsListTitle": "Site Pages",
+        "categoriesJson": "",
+        "featuredJson": ""
       }
     }
   ]

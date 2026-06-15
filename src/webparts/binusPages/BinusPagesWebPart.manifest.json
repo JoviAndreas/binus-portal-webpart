@@ -1,0 +1,27 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "14873e1f-c767-48c9-a0fb-e4499beb561c",
+  "alias": "BinusPagesWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "BINUS Pages" },
+      "description": { "default": "Search BINUSian profiles from the BinusPages directory." },
+      "officeFabricIconFontName": "ContactCard",
+      "properties": {
+        "heading": "BinusPages",
+        "subheading": "Find faculty, staff, and lecturers across BINUS.",
+        "apiBaseUrl": "https://binuspages-api.apps.binus.edu/api",
+        "apiResourceUri": "api://bf54af47-f3d8-4533-a392-711c1d04cdea"
+      }
+    }
+  ]
+}

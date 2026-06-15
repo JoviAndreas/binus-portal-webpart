@@ -18,8 +18,9 @@
       "officeFabricIconFontName": "AppIconDefault",
       "properties": {
         "heading": "Application Link",
-        "subheading": "Quick access to every BINUS service.",
-        "listTitle": "Application Link"
+        "subheading": "",
+        "listTitle": "Application Link",
+        "categoriesJson": ""
       }
     }
   ]

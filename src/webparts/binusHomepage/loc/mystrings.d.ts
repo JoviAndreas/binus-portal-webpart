@@ -4,8 +4,6 @@ declare interface IBinusHomepageWebPartStrings {
   LauncherGroupName: string;
   HeroTitleLabel: string;
   HeroSubtitleLabel: string;
-  CtaLabelLabel: string;
-  CtaUrlLabel: string;
   LauncherHeadingLabel: string;
   LauncherSubheadingLabel: string;
   ListTitleLabel: string;

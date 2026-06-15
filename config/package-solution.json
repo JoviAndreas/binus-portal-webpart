@@ -32,6 +32,12 @@
         "id": "680a2fea-8737-49ec-962f-09f2a78ddd0d",
         "version": "1.0.0.0"
       }
+    ],
+    "webApiPermissionRequests": [
+      {
+        "resource": "BinusPages API",
+        "scope": "user_impersonation"
+      }
     ]
   },
   "paths": {
