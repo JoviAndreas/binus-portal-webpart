@@ -38,14 +38,32 @@ function useCopy(): [string | null, (v: string) => void] {
   return [flash, copy];
 }
 
+const stopLink = (e: React.MouseEvent): void => { e.stopPropagation(); };
+const stopBtn = (e: React.MouseEvent): void => { e.stopPropagation(); e.preventDefault(); };
+
+const idLabelStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 10px',
+  border: `1px solid ${tokens.color.border}`,
+  borderRadius: tokens.radius.sm,
+  background: tokens.color.bg,
+  color: tokens.color.textDark,
+  fontSize: 12,
+  fontWeight: 600,
+  fontFamily: 'SFMono-Regular,Consolas,monospace',
+  letterSpacing: 0.3,
+  cursor: 'pointer'
+};
+
 export const QuickActions: React.FC<IQuickActionsProps> = ({ email, nip, binusianId }) => {
   const [flash, copy] = useCopy();
-  const stop = (e: React.MouseEvent): void => { e.stopPropagation(); e.preventDefault(); };
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
       {email && (
-        <a href={`mailto:${email}`} style={btnStyle} onClick={stop}>
+        <a href={`mailto:${email}`} style={btnStyle} onClick={stopLink}>
           <Icon name="message" size={12} strokeWidth={2} /> Email
         </a>
       )}
@@ -55,24 +73,29 @@ export const QuickActions: React.FC<IQuickActionsProps> = ({ email, nip, binusia
           target="_blank"
           rel="noopener noreferrer"
           style={btnStyle}
-          onClick={stop}
+          onClick={stopLink}
         >
           <Icon name="users" size={12} strokeWidth={2} /> Teams
         </a>
       )}
       {email && (
-        <button style={btnStyle} onClick={(e) => { stop(e); copy(email); }}>
+        <button style={btnStyle} onClick={(e) => { stopBtn(e); copy(email); }}>
           {flash === email ? 'Copied' : 'Copy email'}
         </button>
       )}
       {nip && (
-        <button style={btnStyle} onClick={(e) => { stop(e); copy(nip); }}>
+        <button style={btnStyle} onClick={(e) => { stopBtn(e); copy(nip); }}>
           {flash === nip ? 'Copied' : `NIP ${nip}`}
         </button>
       )}
       {binusianId && (
-        <button style={btnStyle} onClick={(e) => { stop(e); copy(binusianId); }}>
-          {flash === binusianId ? 'Copied' : 'Copy ID'}
+        <button
+          type="button"
+          style={idLabelStyle}
+          onClick={(e) => { stopBtn(e); copy(binusianId); }}
+          title="Click to copy"
+        >
+          {flash === binusianId ? 'Copied' : `ID ${binusianId}`}
         </button>
       )}
     </div>

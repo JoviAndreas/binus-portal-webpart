@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { MSGraphClientFactory } from '@microsoft/sp-http';
 import { tokens, patterns, photos } from '../../../shared/tokens';
 import { BinusLogo } from '../../../shared/BinusLogo';
 import { LampGlow, ConstellationImage, Underline } from '../../../shared/LoadingFX';
@@ -8,6 +9,21 @@ export interface IBinusHeroProps {
   title: string;
   subtitle: string;
   featured: IFeaturedItem[];
+  userDisplayName?: string;
+  userEmail?: string;
+  msGraphClientFactory?: MSGraphClientFactory;
+}
+
+function timeOfDay(): string {
+  const h = new Date().getHours();
+  if (h < 11) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function firstName(s: string): string {
+  if (!s) return '';
+  return s.split(/\s+/)[0];
 }
 
 const styles: { [k: string]: React.CSSProperties } = {
@@ -60,9 +76,24 @@ const styles: { [k: string]: React.CSSProperties } = {
   cardDesc: { fontSize: 13, opacity: 0.85, lineHeight: 1.5 }
 };
 
-export const BinusHero: React.FC<IBinusHeroProps> = ({ title, subtitle, featured }) => {
+export const BinusHero: React.FC<IBinusHeroProps> = ({ title, subtitle, featured, userDisplayName, userEmail, msGraphClientFactory }) => {
   const items = featured && featured.length ? featured : [];
   const showAsymmetric = items.length === 3;
+  const [jobTitle, setJobTitle] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (!msGraphClientFactory) return;
+    let alive = true;
+    void msGraphClientFactory.getClient('3')
+      .then((c) => c.api('/me').select('jobTitle,displayName,department').get())
+      .then((u: { jobTitle?: string }) => { if (alive) setJobTitle(u?.jobTitle || ''); })
+      .catch(() => { /* silent */ });
+    return () => { alive = false; };
+  }, [msGraphClientFactory]);
+
+  const name = firstName(userDisplayName || '');
+  const greeting = name ? `${timeOfDay()}, ${name}` : '';
+
   return (
     <section className="bp-root" style={styles.root}>
       <LampGlow src={photos.heroBg} targetOpacity={0.32} />
@@ -73,6 +104,11 @@ export const BinusHero: React.FC<IBinusHeroProps> = ({ title, subtitle, featured
           <span style={{ width: 1, height: 20, background: 'rgba(255,255,255,.35)', display: 'inline-block' }} />
           <span style={{ fontSize: 14, opacity: 0.85, fontWeight: 600, letterSpacing: 0.5 }}>Portal</span>
         </div>
+        {greeting && (
+          <div className="bp-fade-up" style={{ ...styles.subtitle, animationDelay: '60ms', marginBottom: 4, opacity: 0.95 }}>
+            {greeting}{jobTitle ? ` · ${jobTitle}` : ''}
+          </div>
+        )}
         <h1 className="bp-fade-up" style={{ ...styles.title, animationDelay: '120ms' }}>
           <Underline>{title}</Underline>
         </h1>

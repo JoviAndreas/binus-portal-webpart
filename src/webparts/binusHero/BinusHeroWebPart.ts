@@ -28,7 +28,10 @@ export default class BinusHeroWebPart extends BaseClientSideWebPart<IBinusHeroWe
     const element: React.ReactElement<IBinusHeroProps> = React.createElement(BinusHero, {
       title: this.properties.title || 'Welcome to new BINUS Portal',
       subtitle: this.properties.subtitle || '',
-      featured: parseFeatured(this.properties.featuredJson)
+      featured: parseFeatured(this.properties.featuredJson),
+      userDisplayName: this.context.pageContext.user.displayName,
+      userEmail: this.context.pageContext.user.email,
+      msGraphClientFactory: this.context.msGraphClientFactory
     });
     ReactDom.render(element, this.domElement);
   }

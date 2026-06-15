@@ -355,6 +355,91 @@ const CreatedResult: React.FC<{ result: ICreateResp }> = ({ result }) => (
   </div>
 );
 
+type DamsTab = 'zoom' | 'vbl' | 'aol';
+
+const TabBar: React.FC<{ active: DamsTab; setActive: (t: DamsTab) => void }> = ({ active, setActive }) => (
+  <div style={{ maxWidth: 1100, margin: '24px auto -10px', padding: '0 24px', display: 'flex', gap: 6 }}>
+    {[
+      { key: 'zoom' as DamsTab, label: 'Zoom' },
+      { key: 'vbl' as DamsTab, label: 'VBL' },
+      { key: 'aol' as DamsTab, label: 'AOL' }
+    ].map((t) => {
+      const a = active === t.key;
+      return (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => setActive(t.key)}
+          style={{
+            border: 'none',
+            background: a ? tokens.color.bg : 'transparent',
+            color: a ? tokens.color.blueDark : tokens.color.text,
+            padding: '10px 18px',
+            borderRadius: `${tokens.radius.sm} ${tokens.radius.sm} 0 0`,
+            fontSize: 13,
+            fontWeight: a ? 800 : 600,
+            cursor: 'pointer',
+            borderBottom: a ? `3px solid ${tokens.color.orange}` : '3px solid transparent'
+          }}
+        >{t.label}</button>
+      );
+    })}
+  </div>
+);
+
+const VblPanel: React.FC = () => {
+  const [subject, setSubject] = React.useState('');
+  const [topic, setTopic] = React.useState('');
+  const [files, setFiles] = React.useState<FileList | null>(null);
+  return (
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 40px' }}>
+      <div style={{ background: tokens.color.bg, border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.md, padding: '24px 26px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: tokens.color.orange, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16, paddingBottom: 10, borderBottom: `1px solid ${tokens.color.borderSoft}` }}>VBL Upload</div>
+        <p style={{ margin: '0 0 18px', fontSize: 13, color: tokens.color.text, lineHeight: 1.5 }}>
+          Upload Video Based Learning materials. Files will be archived into DAMS and indexed.
+        </p>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: tokens.color.blueDark, marginBottom: 6 }}>Subject Code</label>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="ISYS6196001" style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${tokens.color.border}`, borderRadius: 8, fontSize: 14, background: tokens.color.bgSoft, fontFamily: tokens.font.family, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: tokens.color.blueDark, marginBottom: 6 }}>Topic</label>
+          <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Week 1 lecture" style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${tokens.color.border}`, borderRadius: 8, fontSize: 14, background: tokens.color.bgSoft, fontFamily: tokens.font.family, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: tokens.color.blueDark, marginBottom: 6 }}>Files</label>
+          <input type="file" multiple onChange={(e) => setFiles(e.target.files)} style={{ fontSize: 13 }} />
+          {files && files.length > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12, color: tokens.color.text }}>{files.length} file(s) ready</div>
+          )}
+        </div>
+        <a
+          href={`https://uploadvbl.apps.binus.edu/?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: tokens.color.orange, color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 700, borderRadius: tokens.radius.pill, boxShadow: '0 6px 16px rgba(243,147,27,.30)' }}
+        >Continue to VBL Upload →</a>
+        <p style={{ margin: '14px 0 0', fontSize: 11, color: tokens.color.text }}>
+          Full in-portal upload coming soon. Continues to existing VBL system for now.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const AolPanel: React.FC = () => (
+  <div style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+    <div style={{ display: 'inline-flex', width: 64, height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: `${tokens.color.orange}1A`, color: tokens.color.orange, marginBottom: 18 }}>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 8v4M12 16h.01"/>
+        <circle cx="12" cy="12" r="10"/>
+      </svg>
+    </div>
+    <h2 style={{ margin: '0 0 8px', color: tokens.color.textDark, fontSize: 22, fontWeight: 800 }}>AOL · In construction</h2>
+    <p style={{ margin: 0, color: tokens.color.text, fontSize: 14 }}>This DAMS area is being built. Check back soon.</p>
+  </div>
+);
+
 export const BinusZoomBot: React.FC<IBinusZoomBotProps> = (p) => {
   const clientRef = React.useRef<Promise<AadHttpClient> | null>(null);
   const getClient = React.useCallback((): Promise<AadHttpClient> => {
@@ -362,6 +447,7 @@ export const BinusZoomBot: React.FC<IBinusZoomBotProps> = (p) => {
     return clientRef.current;
   }, [p.aadClientFactory, p.apiResourceUri]);
 
+  const [tab, setTab] = React.useState<DamsTab>('zoom');
   const [type, setType] = React.useState<MeetingType>('meeting');
   const [title, setTitle] = React.useState('');
   const [startDate, setStartDate] = React.useState('');
@@ -483,6 +569,9 @@ export const BinusZoomBot: React.FC<IBinusZoomBotProps> = (p) => {
         </div>
       </div>
 
+      <TabBar active={tab} setActive={setTab} />
+      {tab !== 'zoom' && (tab === 'vbl' ? <VblPanel /> : <AolPanel />)}
+      {tab === 'zoom' && (
       <div style={styles.body}>
         <form style={styles.card} onSubmit={onSubmit}>
           <div style={styles.sectionEyebrow}>Schedule</div>
@@ -613,6 +702,7 @@ export const BinusZoomBot: React.FC<IBinusZoomBotProps> = (p) => {
           ))}
         </div>
       </div>
+      )}
     </section>
   );
 };

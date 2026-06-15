@@ -35,6 +35,30 @@ export interface ISnapshotEntry {
   email: string;
   dep: string;
   role: string;
+  leadBinusianId?: string;
+  leadEmail?: string;
+}
+
+export interface IOrgPerson {
+  id: string;
+  nip: string;
+  name: string;
+  email: string;
+  dep: string;
+  role: string;
+  leadBinusianId: string;
+  leadEmail: string;
+}
+
+export interface IKnowledgeProfile {
+  binusianId: string;
+  email: string;
+  name: string;
+  division: string;
+  department: string;
+  position: string;
+  band: string;
+  leadEmail: string;
 }
 
 export interface IEmployeeDetail { [k: string]: unknown }
@@ -77,6 +101,16 @@ export class BinusPagesApi {
 
   popular(limit = 50): Promise<ISnapshotEntry[] | null> {
     return this.getJson<ISnapshotEntry[]>(`/Search/popular?limit=${limit}`);
+  }
+
+  orgChain(email: string): Promise<IOrgPerson[] | null> {
+    if (!email) return Promise.resolve(null);
+    return this.getJson<IOrgPerson[]>(`/Org?email=${encodeURIComponent(email)}`);
+  }
+
+  knowledgeProfile(email: string): Promise<IKnowledgeProfile | null> {
+    if (!email) return Promise.resolve(null);
+    return this.getJson<IKnowledgeProfile>(`/KnowledgeMap?email=${encodeURIComponent(email)}`);
   }
 
   async click(binusianId: string): Promise<void> {

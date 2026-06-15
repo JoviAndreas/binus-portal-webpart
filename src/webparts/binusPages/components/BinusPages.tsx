@@ -268,20 +268,19 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
     if (mode !== 'simple') return () => { alive = false; };
     const qq = debounced.trim();
     if (!qq) {
-      void loadPopular().then(() => {
+      void Promise.all([loadPopular(), ensureSnapshot()]).then(() => {
         if (!alive) return;
         const pop = popularRef.current;
         if (pop && pop.length > 0) {
-          setHits(pop.map((s) => ({
-            binusianId: s.id,
-            nama: s.name?.trim() || s.id,
-            namaDep: s.dep,
-            email: s.email,
-            nip: s.nip || s.id
-          })));
-        } else {
-          setHits(null);
+          setHits(pop.map((s) => snapToHit(s)));
+          return;
         }
+        const snap = snapRef.current;
+        if (snap && snap.length > 0) {
+          setHits(snap.slice(0, 50).map((s) => snapToHit(s)));
+          return;
+        }
+        setHits(null);
       });
       return () => { alive = false; };
     }
