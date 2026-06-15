@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "b7ad7c47-1ab3-451d-9527-097479292e4e",
+  "alias": "DamsVblUploadWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "DAMS VBL Upload" },
+      "description": { "default": "Upload Video Based Learning videos to DAMS with lecturer autofill and batch mode." },
+      "officeFabricIconFontName": "CloudUpload",
+      "properties": {
+        "apiBaseUrl": "https://uploadvbl.apps.binus.ac.id/api",
+        "apiResourceUri": "api://f3ce5232-7702-452f-b8a2-075adbf426fd"
+      }
+    }
+  ]
+}
