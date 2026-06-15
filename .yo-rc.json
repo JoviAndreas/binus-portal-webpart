@@ -1,0 +1,21 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "16.16.0",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.9.1"
+    },
+    "version": "1.17.4",
+    "libraryName": "knowledge-mapping",
+    "libraryId": "c98d20fc-01f7-4ad7-a356-18e1a42469ea",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "Knowledge Mapping",
+    "solutionShortDescription": "Knowledge Mapping description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

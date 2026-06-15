@@ -1,0 +1,26 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "d6a4bdbb-e209-4c93-84d2-77e7d4ef029a",
+  "alias": "BinusAppLauncherWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "BINUS App Launcher" },
+      "description": { "default": "Categorised, searchable launcher for all BINUS apps." },
+      "officeFabricIconFontName": "AppIconDefault",
+      "properties": {
+        "heading": "Application Link",
+        "subheading": "Quick access to every BINUS service.",
+        "listTitle": "Application Link"
+      }
+    }
+  ]
+}

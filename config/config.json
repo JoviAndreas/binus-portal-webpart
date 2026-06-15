@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "binus-hero-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/binusHero/BinusHeroWebPart.js",
+          "manifest": "./src/webparts/binusHero/BinusHeroWebPart.manifest.json"
+        }
+      ]
+    },
+    "binus-app-launcher-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/binusAppLauncher/BinusAppLauncherWebPart.js",
+          "manifest": "./src/webparts/binusAppLauncher/BinusAppLauncherWebPart.manifest.json"
+        }
+      ]
+    },
+    "binus-homepage-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/binusHomepage/BinusHomepageWebPart.js",
+          "manifest": "./src/webparts/binusHomepage/BinusHomepageWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "BinusHeroWebPartStrings": "lib/webparts/binusHero/loc/{locale}.js",
+    "BinusAppLauncherWebPartStrings": "lib/webparts/binusAppLauncher/loc/{locale}.js",
+    "BinusHomepageWebPartStrings": "lib/webparts/binusHomepage/loc/{locale}.js"
+  }
+}

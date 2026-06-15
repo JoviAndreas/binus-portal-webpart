@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "BINUS Portal - Webpart",
+    "id": "7ea7a772-04fa-43fb-97c1-8887acd76179",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Knowledge System & Learning Product",
+      "websiteUrl": "https://binus.ac.id/knowledge/",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "BPP-1.23.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "BINUS Portal homepage webparts"
+      },
+      "longDescription": {
+        "default": "Hero, App Launcher and composite Homepage webparts for binusianorg.sharepoint.com"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "binus-portal-webpart Feature",
+        "description": "Activates the BINUS Portal webparts.",
+        "id": "680a2fea-8737-49ec-962f-09f2a78ddd0d",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/binus-portal-webpart.sppkg"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "99a275c6-dbec-4377-ac14-82dcbfb337a2",
+  "alias": "BinusHomepageWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "BINUS Homepage" },
+      "description": { "default": "Full BINUS Portal homepage — hero, announcements, and app launcher." },
+      "officeFabricIconFontName": "Home",
+      "properties": {
+        "heroTitle": "Welcome to BINUS Portal",
+        "heroSubtitle": "Your one-stop access to academics, services, and BINUS Group.",
+        "ctaLabel": "Explore apps",
+        "ctaUrl": "#apps",
+        "launcherHeading": "Application Link",
+        "launcherSubheading": "Quick access to every BINUS service.",
+        "listTitle": "Application Link"
+      }
+    }
+  ]
+}

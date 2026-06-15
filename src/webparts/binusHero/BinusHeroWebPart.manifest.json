@@ -1,0 +1,27 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "d106cbd3-3563-4462-b3bf-5c0d3ccf9377",
+  "alias": "BinusHeroWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "BINUS Hero" },
+      "description": { "default": "Featured hero banner styled to match binus.ac.id." },
+      "officeFabricIconFontName": "FlashOn",
+      "properties": {
+        "title": "Welcome to BINUS Portal",
+        "subtitle": "Your one-stop access to academics, services, and BINUS Group.",
+        "ctaLabel": "Explore apps",
+        "ctaUrl": "#apps"
+      }
+    }
+  ]
+}
