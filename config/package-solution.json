@@ -41,6 +41,10 @@
       {
         "resource": "knowledge-mapping",
         "scope": "access_as_user"
+      },
+      {
+        "resource": "f3ce5232-7702-452f-b8a2-075adbf426fd",
+        "scope": "access_as_user"
       }
     ]
   },

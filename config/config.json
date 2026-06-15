@@ -41,6 +41,22 @@
           "manifest": "./src/webparts/binusZoomBot/BinusZoomBotWebPart.manifest.json"
         }
       ]
+    },
+    "dams-vbl-upload-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/damsVblUpload/DamsVblUploadWebPart.js",
+          "manifest": "./src/webparts/damsVblUpload/DamsVblUploadWebPart.manifest.json"
+        }
+      ]
+    },
+    "dams-vbl-admin-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/damsVblAdmin/DamsVblAdminWebPart.js",
+          "manifest": "./src/webparts/damsVblAdmin/DamsVblAdminWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -49,6 +65,8 @@
     "BinusAppLauncherWebPartStrings": "lib/webparts/binusAppLauncher/loc/{locale}.js",
     "BinusHomepageWebPartStrings": "lib/webparts/binusHomepage/loc/{locale}.js",
     "BinusPagesWebPartStrings": "lib/webparts/binusPages/loc/{locale}.js",
-    "BinusZoomBotWebPartStrings": "lib/webparts/binusZoomBot/loc/{locale}.js"
+    "BinusZoomBotWebPartStrings": "lib/webparts/binusZoomBot/loc/{locale}.js",
+    "DamsVblUploadWebPartStrings": "lib/webparts/damsVblUpload/loc/{locale}.js",
+    "DamsVblAdminWebPartStrings": "lib/webparts/damsVblAdmin/loc/{locale}.js"
   }
 }
