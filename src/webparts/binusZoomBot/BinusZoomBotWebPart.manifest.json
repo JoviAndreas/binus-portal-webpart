@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "c4cfe297-f7fb-4cfb-b885-c89e2e637286",
+  "alias": "BinusZoomBotWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "supportsFullBleed": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "BINUS Portal" },
+      "title": { "default": "DAMS · Webinar" },
+      "description": { "default": "Schedule Zoom webinars and meetings. Recordings auto-archive into DAMS." },
+      "officeFabricIconFontName": "WebinarCamera",
+      "properties": {
+        "heading": "Webinar",
+        "eyebrow": "DAMS",
+        "subheading": "Schedule a Zoom session. Recordings and transcripts archive automatically.",
+        "apiBaseUrl": "https://knowledgemapping.thankfulsky-d80be677.southeastasia.azurecontainerapps.io/api/binuspages",
+        "apiResourceUri": "api://77e4afeb-4f7c-4341-bc6d-87c25f08e762",
+        "defaultHostEmail": "km@binus.edu",
+        "defaultTimezone": "Asia/Jakarta"
+      }
+    }
+  ]
+}

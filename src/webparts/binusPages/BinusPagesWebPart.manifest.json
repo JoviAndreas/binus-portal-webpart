@@ -19,8 +19,10 @@
       "properties": {
         "heading": "BinusPages",
         "subheading": "Find faculty, staff, and lecturers across BINUS.",
-        "apiBaseUrl": "https://binuspages-api.apps.binus.edu/api",
-        "apiResourceUri": "api://bf54af47-f3d8-4533-a392-711c1d04cdea"
+        "apiBaseUrl": "https://knowledgemapping.thankfulsky-d80be677.southeastasia.azurecontainerapps.io/api/binuspages",
+        "apiResourceUri": "api://77e4afeb-4f7c-4341-bc6d-87c25f08e762",
+        "agentBaseUrl": "https://binuspages-api.apps.binus.edu/api",
+        "agentResourceUri": "api://bf54af47-f3d8-4533-a392-711c1d04cdea"
       }
     }
   ]

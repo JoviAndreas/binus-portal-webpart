@@ -16,6 +16,8 @@ export interface IBinusPagesWebPartProps {
   subheading: string;
   apiBaseUrl: string;
   apiResourceUri: string;
+  agentBaseUrl: string;
+  agentResourceUri: string;
 }
 
 export default class BinusPagesWebPart extends BaseClientSideWebPart<IBinusPagesWebPartProps> {
@@ -28,9 +30,12 @@ export default class BinusPagesWebPart extends BaseClientSideWebPart<IBinusPages
     const element: React.ReactElement<IBinusPagesProps> = React.createElement(BinusPages, {
       heading: this.properties.heading || 'BinusPages',
       subheading: this.properties.subheading || '',
-      apiBaseUrl: this.properties.apiBaseUrl || 'https://binuspages-api.apps.binus.edu/api',
-      apiResourceUri: this.properties.apiResourceUri || 'api://bf54af47-f3d8-4533-a392-711c1d04cdea',
-      aadClientFactory: this.context.aadHttpClientFactory
+      apiBaseUrl: this.properties.apiBaseUrl || 'https://knowledgemapping.thankfulsky-d80be677.southeastasia.azurecontainerapps.io/api/binuspages',
+      apiResourceUri: this.properties.apiResourceUri || 'api://77e4afeb-4f7c-4341-bc6d-87c25f08e762',
+      agentBaseUrl: this.properties.agentBaseUrl || 'https://binuspages-api.apps.binus.edu/api',
+      agentResourceUri: this.properties.agentResourceUri || 'api://bf54af47-f3d8-4533-a392-711c1d04cdea',
+      aadClientFactory: this.context.aadHttpClientFactory,
+      webUrl: this.context.pageContext.web.absoluteUrl
     });
     ReactDom.render(element, this.domElement);
   }
@@ -60,7 +65,9 @@ export default class BinusPagesWebPart extends BaseClientSideWebPart<IBinusPages
               groupName: strings.ApiGroupName,
               groupFields: [
                 PropertyPaneTextField('apiBaseUrl', { label: strings.ApiBaseLabel }),
-                PropertyPaneTextField('apiResourceUri', { label: strings.ResourceUriLabel })
+                PropertyPaneTextField('apiResourceUri', { label: strings.ResourceUriLabel }),
+                PropertyPaneTextField('agentBaseUrl', { label: 'Detail agent base URL' }),
+                PropertyPaneTextField('agentResourceUri', { label: 'Detail agent AAD resource' })
               ]
             }
           ]

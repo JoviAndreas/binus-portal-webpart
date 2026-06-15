@@ -33,6 +33,14 @@
           "manifest": "./src/webparts/binusPages/BinusPagesWebPart.manifest.json"
         }
       ]
+    },
+    "binus-zoombot-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/binusZoomBot/BinusZoomBotWebPart.js",
+          "manifest": "./src/webparts/binusZoomBot/BinusZoomBotWebPart.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
@@ -40,6 +48,7 @@
     "BinusHeroWebPartStrings": "lib/webparts/binusHero/loc/{locale}.js",
     "BinusAppLauncherWebPartStrings": "lib/webparts/binusAppLauncher/loc/{locale}.js",
     "BinusHomepageWebPartStrings": "lib/webparts/binusHomepage/loc/{locale}.js",
-    "BinusPagesWebPartStrings": "lib/webparts/binusPages/loc/{locale}.js"
+    "BinusPagesWebPartStrings": "lib/webparts/binusPages/loc/{locale}.js",
+    "BinusZoomBotWebPartStrings": "lib/webparts/binusZoomBot/loc/{locale}.js"
   }
 }
