@@ -53,20 +53,21 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
     }
     setSaving(true);
     setMessage(null);
-    api.patchSubmission(id, patch).then((updated) => {
+    api.patchSubmission(id, patch).then((res) => {
       setSaving(false);
-      if (!updated) {
-        setMessage({ kind: 'error', text: 'Save failed. Check your access.' });
+      if (!res.ok) {
+        setMessage({ kind: 'error', text: res.message || 'Save failed.' });
         return;
       }
-      setSub(updated);
+      setSub(res.data);
       setPatch({});
       setMessage({ kind: 'success', text: 'Saved.' });
       onSaved();
       api.getHistory(id).then((h) => setHistory(h)).catch(() => undefined);
-    }).catch(() => {
+    }).catch((e) => {
       setSaving(false);
       setMessage({ kind: 'error', text: 'Save failed. Could not reach the DAMS API.' });
+      console.error('[dams] editor save failed', e);
     });
   };
 

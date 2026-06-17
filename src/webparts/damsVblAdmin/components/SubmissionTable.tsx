@@ -214,19 +214,25 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setLocalOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...(patch as Partial<ISubmission>) } }));
     setRowErrors((prev) => { const n = { ...prev }; delete n[id]; return n; });
 
-    api.patchSubmission(id, patch).then((updated) => {
-      if (!updated) {
-        // Revert
+    api.patchSubmission(id, patch).then((res) => {
+      if (!res.ok) {
         setLocalOverrides((prev) => { const n = { ...prev }; delete n[id]; return n; });
-        setRowErrors((prev) => ({ ...prev, [id]: 'Save failed.' }));
+        setRowErrors((prev) => ({ ...prev, [id]: res.message }));
+        // Auto-clear error after 6s
+        window.setTimeout(() => {
+          setRowErrors((prev) => { const n = { ...prev }; delete n[id]; return n; });
+        }, 6000);
         return;
       }
-      // Replace item in list with server response, clear override
-      setItems((prev) => prev.map((s) => (s.Id === id ? updated : s)));
+      setItems((prev) => prev.map((s) => (s.Id === id ? res.data : s)));
       setLocalOverrides((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    }).catch(() => {
+    }).catch((e) => {
       setLocalOverrides((prev) => { const n = { ...prev }; delete n[id]; return n; });
       setRowErrors((prev) => ({ ...prev, [id]: 'Network error.' }));
+      window.setTimeout(() => {
+        setRowErrors((prev) => { const n = { ...prev }; delete n[id]; return n; });
+      }, 6000);
+      console.error('[dams] patchSubmission failed', e);
     });
   };
 

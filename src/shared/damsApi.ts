@@ -118,18 +118,44 @@ export class DamsApi {
     return this.getJson<IStatusHistory[]>(`/Submissions/${encodeURIComponent(id)}/history`);
   }
 
-  public async patchSubmission(id: string, patch: ISubmissionPatch): Promise<ISubmission | null> {
+  public async patchSubmission(id: string, patch: ISubmissionPatch): Promise<{ ok: true; data: ISubmission } | { ok: false; status: number; message: string }> {
     const c = await this.getClient();
     const opts: IHttpClientOptions = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch)
     };
-    const r = await c.fetch(this.url(`/Submissions/${encodeURIComponent(id)}`), AadHttpClient.configurations.v1, {
-      ...opts,
-      method: 'PATCH'
-    });
-    if (!r.ok) return null;
-    return (await r.json()) as ISubmission;
+    let r: HttpClientResponse;
+    try {
+      r = await c.fetch(this.url(`/Submissions/${encodeURIComponent(id)}`), AadHttpClient.configurations.v1, {
+        ...opts,
+        method: 'PATCH'
+      });
+    } catch (e) {
+      return { ok: false, status: 0, message: 'Network error.' };
+    }
+    if (!r.ok) {
+      let msg = `HTTP ${r.status}`;
+      try {
+        const body = await r.text();
+        if (body) {
+          try {
+            const parsed = JSON.parse(body);
+            msg = parsed.error || parsed.title || parsed.message || body.slice(0, 200);
+          } catch {
+            msg = body.slice(0, 200);
+          }
+        }
+      } catch {
+        /* ignore body read errors */
+      }
+      return { ok: false, status: r.status, message: msg };
+    }
+    try {
+      const data = (await r.json()) as ISubmission;
+      return { ok: true, data };
+    } catch (e) {
+      return { ok: false, status: r.status, message: 'Bad response body.' };
+    }
   }
 
   public async bulkPatch(body: IBulkPatch): Promise<BulkPatchResult | null> {
