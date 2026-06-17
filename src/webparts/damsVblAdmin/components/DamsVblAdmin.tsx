@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { AadHttpClient } from '@microsoft/sp-http';
 import { tokens } from '../../../shared/tokens';
-import { BinusLogo } from '../../../shared/BinusLogo';
 import { DamsApi } from '../../../shared/damsApi';
 import { IMeInfo } from '../../../shared/damsTypes';
-import { MessageBar } from '../../../shared/DamsUi';
+import { MessageBar, DamsStyles, HeaderBar } from '../../../shared/DamsUi';
 import { SubmissionTable } from './SubmissionTable';
 import { SubmissionEditor } from './SubmissionEditor';
 
@@ -43,63 +42,44 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
 
   return (
     <div
-      className="bp-root"
+      className="dams-scope"
       style={{
         fontFamily: tokens.font.family,
         color: tokens.color.text,
-        background: tokens.color.bgSoft,
-        padding: tokens.space.lg,
-        borderRadius: tokens.radius.lg
+        background: 'transparent'
       }}
     >
-      <header
+      <DamsStyles />
+      <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: tokens.space.md,
-          marginBottom: tokens.space.lg
+          background: 'transparent'
         }}
       >
-        <div>
-          <p
-            style={{
-              fontSize: tokens.font.small,
-              fontWeight: 700,
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              color: tokens.color.orange,
-              margin: 0
-            }}
-          >
-            DAMS - Video Based Learning
-          </p>
-          <h1 style={{ fontSize: tokens.font.h1, color: tokens.color.textDark, margin: '4px 0 0' }}>Admin Review</h1>
-        </div>
-        <BinusLogo height={36} />
-      </header>
+        <HeaderBar title="Admin Review" />
+        <div style={{ padding: '24px 24px 28px' }}>
+          {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
 
-      {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
-
-      {!loading && (error || !me || !me.isAdmin) && (
-        <MessageBar kind="error">
-          No admin access. {me && me.email ? `Signed in as ${me.email}.` : ''} Contact the DAMS administrator to be added to the allowlist.
-        </MessageBar>
-      )}
-
-      {!loading && me && me.isAdmin && (
-        <>
-          <SubmissionTable api={api} reloadToken={reloadToken} onRowClick={(id) => setEditingId(id)} />
-          {editingId && (
-            <SubmissionEditor
-              api={api}
-              id={editingId}
-              onClose={() => setEditingId(null)}
-              onSaved={() => setReloadToken((t) => t + 1)}
-            />
+          {!loading && (error || !me || !me.isAdmin) && (
+            <MessageBar kind="error">
+              No admin access. {me && me.email ? `Signed in as ${me.email}.` : ''} Contact the DAMS administrator to be added to the allowlist.
+            </MessageBar>
           )}
-        </>
-      )}
+
+          {!loading && me && me.isAdmin && (
+            <>
+              <SubmissionTable api={api} reloadToken={reloadToken} onRowClick={(id) => setEditingId(id)} />
+              {editingId && (
+                <SubmissionEditor
+                  api={api}
+                  id={editingId}
+                  onClose={() => setEditingId(null)}
+                  onSaved={() => setReloadToken((t) => t + 1)}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -14,19 +14,20 @@ const PAGE_SIZE = 25;
 
 const th: React.CSSProperties = {
   textAlign: 'left',
-  padding: '10px 12px',
-  fontSize: '12px',
+  padding: '11px 12px',
+  fontSize: tokens.font.label,
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   color: tokens.color.text,
-  borderBottom: `1px solid ${tokens.color.border}`
+  background: tokens.color.surfaceAlt,
+  borderBottom: `1px solid ${tokens.color.line}`
 };
 const td: React.CSSProperties = {
   padding: '10px 12px',
   fontSize: tokens.font.small,
-  color: tokens.color.textDark,
-  borderBottom: `1px solid ${tokens.color.borderSoft}`,
+  color: tokens.color.ink,
+  borderBottom: `1px solid ${tokens.color.line}`,
   verticalAlign: 'middle'
 };
 
@@ -105,7 +106,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
       {error && <MessageBar kind="error">{error}</MessageBar>}
 
-      <div style={{ border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.md, overflow: 'hidden' }}>
+      <div style={{ border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, overflow: 'hidden', boxShadow: tokens.shadow.sm }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -129,6 +130,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             {!loading && items.map((s) => (
               <tr
                 key={s.Id}
+                className="dams-row"
                 onClick={() => onRowClick(s.Id)}
                 style={{ cursor: 'pointer' }}
               >

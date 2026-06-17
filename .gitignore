@@ -32,4 +32,5 @@ obj
 
 # Styles Generated Code
 *.scss.ts
-*.scss.d.ts
+*.scss.d.ts.preview/
+.preview/

@@ -43,6 +43,11 @@ export class DamsApi {
     return this.getJson<IMeInfo>('/Me');
   }
 
+  public mySubmissions(email: string): Promise<ISubmission[] | null> {
+    if (!email) return Promise.resolve(null);
+    return this.getJson<ISubmission[]>(`/Submissions/me?email=${encodeURIComponent(email)}`);
+  }
+
   public lookupBinusian(q: string): Promise<IBinusianInfo | null> {
     if (!q) return Promise.resolve(null);
     return this.getJson<IBinusianInfo>(`/Binusian?q=${encodeURIComponent(q)}`);

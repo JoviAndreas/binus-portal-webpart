@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { tokens } from './tokens';
-import { Icon } from './Icon';
 
 export interface IComboboxProps {
   options: string[];
@@ -59,9 +58,9 @@ export const Combobox: React.FC<IComboboxProps> = ({
           fontFamily: tokens.font.family,
           fontSize: tokens.font.body,
           textAlign: 'left',
-          color: value ? tokens.color.textDark : tokens.color.text,
+          color: value ? tokens.color.ink : '#9AA6B0',
           background: tokens.color.bg,
-          border: `1px solid ${tokens.color.border}`,
+          border: `1px solid ${tokens.color.inputBorder}`,
           borderRadius: tokens.radius.sm,
           cursor: 'pointer'
         }}
@@ -69,7 +68,15 @@ export const Combobox: React.FC<IComboboxProps> = ({
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {value || placeholder}
         </span>
-        <Icon name="arrowRight" size={14} style={{ transform: 'rotate(90deg)', opacity: 0.5 }} />
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          style={{ flexShrink: 0, transition: 'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }}
+        >
+          <path d="M2.5 4.5L6 8l3.5-3.5" stroke={tokens.color.blue} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {open && (
         <div
@@ -80,9 +87,9 @@ export const Combobox: React.FC<IComboboxProps> = ({
             left: 0,
             right: 0,
             background: tokens.color.bg,
-            border: `1px solid ${tokens.color.border}`,
-            borderRadius: tokens.radius.md,
-            boxShadow: tokens.shadow.md,
+            border: `1px solid ${tokens.color.line}`,
+            borderRadius: tokens.radius.card,
+            boxShadow: tokens.shadow.lg,
             overflow: 'hidden'
           }}
         >
@@ -94,10 +101,11 @@ export const Combobox: React.FC<IComboboxProps> = ({
             style={{
               width: '100%',
               border: 'none',
-              borderBottom: `1px solid ${tokens.color.borderSoft}`,
+              borderBottom: `1px solid ${tokens.color.line}`,
               padding: '10px 12px',
               fontFamily: tokens.font.family,
               fontSize: tokens.font.body,
+              color: tokens.color.ink,
               outline: 'none'
             }}
           />
@@ -112,20 +120,7 @@ export const Combobox: React.FC<IComboboxProps> = ({
                 key={o}
                 type="button"
                 onClick={() => pick(o)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: tokens.space.sm,
-                  padding: '8px 12px',
-                  border: 'none',
-                  background: o.toLowerCase() === value.toLowerCase() ? tokens.color.bgSoft : 'transparent',
-                  fontFamily: tokens.font.family,
-                  fontSize: tokens.font.body,
-                  color: tokens.color.textDark,
-                  textAlign: 'left',
-                  cursor: 'pointer'
-                }}
+                className={`dams-opt${o.toLowerCase() === value.toLowerCase() ? ' dams-opt-sel' : ''}`}
               >
                 {o}
               </button>
@@ -134,17 +129,8 @@ export const Combobox: React.FC<IComboboxProps> = ({
               <button
                 type="button"
                 onClick={() => pick(search)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: 'none',
-                  background: 'transparent',
-                  fontFamily: tokens.font.family,
-                  fontSize: tokens.font.body,
-                  color: tokens.color.blueDark,
-                  textAlign: 'left',
-                  cursor: 'pointer'
-                }}
+                className="dams-opt"
+                style={{ color: tokens.color.blue, fontWeight: 700 }}
               >
                 Use &quot;{search}&quot; (custom)
               </button>

@@ -28,10 +28,10 @@ export const HistoryTimeline: React.FC<{ history: IStatusHistory[] | null; loadi
               {h.FromStatus && <span style={{ color: tokens.color.text }}>{'->'}</span>}
               <StatusBadge status={h.ToStatus} />
             </div>
-            <div style={{ fontSize: '12px', color: tokens.color.text, marginTop: 4 }}>
+            <div style={{ fontSize: tokens.font.label, color: tokens.color.text, marginTop: 4 }}>
               {h.ActorEmail} - {new Date(h.At).toLocaleString()}
             </div>
-            {h.Note && <div style={{ fontSize: tokens.font.small, color: tokens.color.textDark, marginTop: 2 }}>{h.Note}</div>}
+            {h.Note && <div style={{ fontSize: tokens.font.small, color: tokens.color.ink, marginTop: 2 }}>{h.Note}</div>}
           </div>
         </div>
       ))}

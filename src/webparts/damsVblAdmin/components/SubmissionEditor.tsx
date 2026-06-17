@@ -73,7 +73,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(26,26,26,.4)' }} />
       <div
-        className="bp-root"
+        className="dams-scope"
         style={{
           position: 'relative',
           width: 'min(560px, 100%)',
@@ -81,16 +81,29 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
           background: tokens.color.bg,
           boxShadow: tokens.shadow.lg,
           overflowY: 'auto',
-          padding: tokens.space.lg,
-          fontFamily: tokens.font.family
+          fontFamily: tokens.font.family,
+          borderTop: `4px solid ${tokens.color.blue}`
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.space.md }}>
-          <h3 style={{ margin: 0, fontSize: tokens.font.h3, color: tokens.color.textDark }}>Submission</h3>
-          <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, cursor: 'pointer', color: tokens.color.text }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '18px 24px',
+            borderBottom: `3px solid ${tokens.color.orange}`,
+            position: 'sticky',
+            top: 0,
+            background: tokens.color.bg,
+            zIndex: 1
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: tokens.font.h3, color: tokens.color.ink, fontWeight: 800 }}>Submission</h3>
+          <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, cursor: 'pointer', color: tokens.color.text, lineHeight: 1 }}>
             x
           </button>
         </div>
+        <div style={{ padding: tokens.space.lg }}>
 
         {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
         {!loading && !sub && <MessageBar kind="error">Submission not found.</MessageBar>}
@@ -98,7 +111,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
         {!loading && sub && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.sm, flexWrap: 'wrap' }}>
-              <strong style={{ color: tokens.color.textDark }}>{sub.CodeNumber}</strong>
+              <strong style={{ color: tokens.color.ink }}>{sub.CodeNumber}</strong>
               <StatusBadge status={sub.Status} />
               {sub.LinkDamsShare && (
                 <a href={sub.LinkDamsShare} target="_blank" rel="noreferrer" style={{ fontSize: tokens.font.small }}>
@@ -168,12 +181,13 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
               </PrimaryButton>
             </div>
 
-            <div style={{ borderTop: `1px solid ${tokens.color.borderSoft}`, paddingTop: tokens.space.md }}>
-              <h4 style={{ margin: `0 0 ${tokens.space.md}`, fontSize: tokens.font.body, color: tokens.color.textDark }}>Status history</h4>
+            <div style={{ borderTop: `1px solid ${tokens.color.line}`, paddingTop: tokens.space.md }}>
+              <h4 style={{ margin: `0 0 ${tokens.space.md}`, fontSize: tokens.font.body, color: tokens.color.ink, fontWeight: 700 }}>Status history</h4>
               <HistoryTimeline history={history} loading={historyLoading} />
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

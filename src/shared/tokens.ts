@@ -7,24 +7,40 @@ export const tokens = {
     blueLight: '#34AEE2',
     text: '#5E5E5E',
     textDark: '#1A1A1A',
+    ink: '#0B2C44',
     bg: '#FFFFFF',
     bgSoft: '#F7F7F7',
+    page: '#EEF2F6',
+    surfaceAlt: '#F4F7FA',
+    tint: '#EAF6FC',
+    tintBorder: '#BFE0F2',
     border: '#E7E7E7',
-    borderSoft: '#F3F3F3'
+    line: '#E4E9ED',
+    inputBorder: '#C7D0D8',
+    inputHover: '#A9B6C0',
+    borderSoft: '#F3F3F3',
+    focus: '#008ED3',
+    placeholder: '#9AA6B0',
+    danger: '#C2362B',
+    dangerBg: '#FBECEC',
+    success: '#1E7B43',
+    successBg: '#E8F6EE'
   },
   font: {
     family: '"Open Sans", "Segoe UI", system-ui, -apple-system, sans-serif',
     h1: '32px',
-    h2: '24px',
+    h2: '23px',
     h3: '18px',
     body: '15px',
-    small: '13px'
+    small: '13px',
+    label: '12px',
+    micro: '11.5px'
   },
-  radius: { sm: '6px', md: '10px', lg: '16px', pill: '999px' },
+  radius: { xs: '3px', sm: '4px', md: '6px', lg: '8px', pill: '999px', control: '4px', card: '8px' },
   shadow: {
-    sm: '0 1px 2px rgba(0,0,0,.04), 0 1px 1px rgba(0,0,0,.03)',
-    md: '0 4px 12px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04)',
-    lg: '0 12px 32px rgba(2,74,122,.12), 0 4px 8px rgba(0,0,0,.04)'
+    sm: '0 1px 0 rgba(11,44,68,.04)',
+    md: '0 1px 3px rgba(11,44,68,.08), 0 1px 1px rgba(11,44,68,.04)',
+    lg: '0 6px 20px rgba(11,44,68,.10)'
   },
   space: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px', xxl: '48px' },
   logo: 'https://binus.ac.id/wp-content/uploads/2022/08/logo-binus.svg'
