@@ -43,7 +43,8 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
     return () => { active = false; };
   }, [api]);
 
-  const hasAccess = me && (me.IsAdmin || me.IsEditor);
+  // Anyone authenticated can view (search/filter). Edit gated per-control via me.IsAdmin/IsEditor.
+  const hasAccess = !!me;
 
   return (
     <div
@@ -79,6 +80,7 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
                 <SubmissionEditor
                   api={api}
                   id={editingId}
+                  canEdit={!!(me && (me.IsAdmin || me.IsEditor))}
                   onClose={() => setEditingId(null)}
                   onSaved={() => setReloadToken((t) => t + 1)}
                 />

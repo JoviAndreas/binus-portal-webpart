@@ -8,13 +8,14 @@ import { HistoryTimeline } from './HistoryTimeline';
 export interface ISubmissionEditorProps {
   api: DamsApi;
   id: string;
+  canEdit: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
 const starToNum = (v: string | undefined): number => parseInt(v || '0', 10) || 0;
 
-export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, onClose, onSaved }) => {
+export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, canEdit, onClose, onSaved }) => {
   const [loading, setLoading] = React.useState(true);
   const [sub, setSub] = React.useState<ISubmission | null>(null);
   const [history, setHistory] = React.useState<IStatusHistory[] | null>(null);
@@ -135,6 +136,10 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
                 )}
               </div>
 
+              {!canEdit && (
+                <MessageBar kind="info">View only. Sign in as an editor or admin to edit.</MessageBar>
+              )}
+              <fieldset disabled={!canEdit} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: tokens.space.md }}>
               {/* Quality stars */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: tokens.space.md }}>
                 <Field label="Kualitas Video">
@@ -184,14 +189,17 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
               <Field label="QC">
                 <TextInput maxLength={100} value={cur('Qc', sub.Qc || '') as string} onChange={(e) => setP('Qc', e.target.value)} />
               </Field>
+              </fieldset>
 
               {message && <MessageBar kind={message.kind}>{message.text}</MessageBar>}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm }}>
                 <GhostButton type="button" onClick={onClose}>Close</GhostButton>
-                <PrimaryButton type="button" onClick={save} disabled={saving}>
-                  {saving ? 'Saving...' : 'Save changes'}
-                </PrimaryButton>
+                {canEdit && (
+                  <PrimaryButton type="button" onClick={save} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save changes'}
+                  </PrimaryButton>
+                )}
               </div>
 
               <div style={{ borderTop: `1px solid ${tokens.color.line}`, paddingTop: tokens.space.md }}>

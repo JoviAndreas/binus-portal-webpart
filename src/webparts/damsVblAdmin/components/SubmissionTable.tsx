@@ -130,13 +130,16 @@ const ConfirmModal: React.FC<{
 
 export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors }) => {
   const isSupervisor = me.IsSupervisor;
-  const defaultChip: FilterChip = (me.IsEditor && !isSupervisor) ? 'myqueue' : 'myqueue';
+  const canEdit = me.IsAdmin || me.IsEditor;
+  const defaultChip: FilterChip = (me.IsEditor && !isSupervisor) ? 'myqueue' : 'allactive';
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
   const [dosen, setDosen] = React.useState('');
   const [kodeMK, setKodeMK] = React.useState('');
+  const [fakultas, setFakultas] = React.useState('');
+  const [jurusan, setJurusan] = React.useState('');
   const [q, setQ] = React.useState('');
-  const [appliedExtra, setAppliedExtra] = React.useState({ dosen: '', kodeMK: '', q: '' });
+  const [appliedExtra, setAppliedExtra] = React.useState({ dosen: '', kodeMK: '', fakultas: '', jurusan: '', q: '' });
   const [page, setPage] = React.useState(1);
 
   const [items, setItems] = React.useState<ISubmission[]>([]);
@@ -162,7 +165,13 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [bulkLoading, setBulkLoading] = React.useState(false);
 
   const buildFilter = React.useCallback((): Record<string, unknown> => {
-    const extra = { dosen: appliedExtra.dosen || undefined, kodeMK: appliedExtra.kodeMK || undefined, q: appliedExtra.q || undefined };
+    const extra = {
+      dosen: appliedExtra.dosen || undefined,
+      kodeMK: appliedExtra.kodeMK || undefined,
+      fakultas: appliedExtra.fakultas || undefined,
+      jurusan: appliedExtra.jurusan || undefined,
+      q: appliedExtra.q || undefined
+    };
     switch (chip) {
       case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus: true, page, pageSize: PAGE_SIZE };
       case 'unassigned': return { ...extra, unassigned: true, excludeStatus: true, page, pageSize: PAGE_SIZE };
@@ -200,7 +209,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   const applyExtra = (): void => {
     setPage(1);
-    setAppliedExtra({ dosen, kodeMK, q });
+    setAppliedExtra({ dosen, kodeMK, fakultas, jurusan, q });
   };
 
   const switchChip = (c: FilterChip): void => {
@@ -351,7 +360,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
       {/* Filter chips */}
       <div style={{ display: 'flex', gap: tokens.space.sm, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(Object.keys(CHIP_LABELS) as FilterChip[]).map((c) => (
+        {(Object.keys(CHIP_LABELS) as FilterChip[])
+          .filter((c) => canEdit || (c !== 'myqueue' && c !== 'unassigned'))
+          .map((c) => (
           <button
             key={c}
             type="button"
@@ -374,10 +385,40 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: tokens.space.sm, alignItems: 'flex-end' }}>
           <Field label="Kode Dosen" style={{ flexShrink: 0 }}>
-            <TextInput value={dosen} onChange={(e) => setDosen(e.target.value)} placeholder="D1234" style={{ width: 90 }} />
+            <TextInput
+              value={dosen}
+              onChange={(e) => setDosen(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
+              placeholder="D1234"
+              style={{ width: 90 }}
+            />
           </Field>
           <Field label="Kode MK" style={{ flexShrink: 0 }}>
-            <TextInput value={kodeMK} onChange={(e) => setKodeMK(e.target.value)} placeholder="COMP6047" style={{ width: 100 }} />
+            <TextInput
+              value={kodeMK}
+              onChange={(e) => setKodeMK(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
+              placeholder="COMP6047"
+              style={{ width: 100 }}
+            />
+          </Field>
+          <Field label="Fakultas" style={{ flexShrink: 0 }}>
+            <TextInput
+              value={fakultas}
+              onChange={(e) => setFakultas(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
+              placeholder="FDCHT, SOCS..."
+              style={{ width: 140 }}
+            />
+          </Field>
+          <Field label="Jurusan" style={{ flexShrink: 0 }}>
+            <TextInput
+              value={jurusan}
+              onChange={(e) => setJurusan(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
+              placeholder="Hotel Management..."
+              style={{ width: 160 }}
+            />
           </Field>
           <Field label="Search" style={{ flexShrink: 0 }}>
             <TextInput
@@ -605,6 +646,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                       <StatusPills
                         value={displayStatus(s)}
                         onChange={(newStatus) => handleStatusChange(s.Id, newStatus)}
+                        disabled={!canEdit}
                       />
                       {rowErr && <div style={{ fontSize: tokens.font.micro, color: tokens.color.danger, marginTop: 3 }}>{rowErr}</div>}
                     </td>
@@ -612,6 +654,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                       <BumperSegmented
                         value={val(s, 'StatusAdaBumper') as string}
                         onChange={(v) => optimisticPatch(s.Id, { StatusAdaBumper: v })}
+                        disabled={!canEdit}
                       />
                     </td>
                     <td style={td}>
@@ -626,6 +669,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                       <ToggleSwitch
                         value={!!(val(s, 'ButuhEdit') as boolean)}
                         onChange={(v) => optimisticPatch(s.Id, { ButuhEdit: v })}
+                        disabled={!canEdit}
                       />
                     </td>
                     <td style={td}>
