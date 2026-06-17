@@ -251,12 +251,51 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
 
   // Selection helpers (supervisor only)
+  const lastClickedRef = React.useRef<string | null>(null);
   const toggleSelect = (id: string): void => {
     setSelected((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
+    lastClickedRef.current = id;
+  };
+  const rangeSelect = (id: string): void => {
+    const last = lastClickedRef.current;
+    if (!last || last === id) {
+      toggleSelect(id);
+      return;
+    }
+    const ids = items.map((s) => s.Id);
+    const a = ids.indexOf(last);
+    const b = ids.indexOf(id);
+    if (a < 0 || b < 0) { toggleSelect(id); return; }
+    const [lo, hi] = a < b ? [a, b] : [b, a];
+    const range = ids.slice(lo, hi + 1);
+    setSelected((prev) => {
+      const n = new Set(prev);
+      range.forEach((x) => n.add(x));
+      return n;
+    });
+    lastClickedRef.current = id;
+  };
+  const isInlineControl = (target: EventTarget | null): boolean => {
+    let el = target as HTMLElement | null;
+    while (el && el.nodeType === 1) {
+      const tag = el.tagName;
+      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'A' || tag === 'LABEL') return true;
+      const role = el.getAttribute && el.getAttribute('role');
+      if (role === 'switch' || role === 'radiogroup' || role === 'radio' || role === 'combobox' || role === 'menu') return true;
+      if (el.getAttribute && el.getAttribute('data-inline') === 'true') return true;
+      el = el.parentElement;
+    }
+    return false;
+  };
+  const onRowClick = (e: React.MouseEvent, id: string): void => {
+    if (!isSupervisor) return;
+    if (isInlineControl(e.target)) return;
+    e.preventDefault();
+    if (e.shiftKey) rangeSelect(id); else toggleSelect(id);
   };
   const toggleSelectAll = (): void => {
     setSelected((prev) => prev.size === items.length ? new Set() : new Set(items.map((s) => s.Id)));
@@ -524,13 +563,21 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
               const isPendingNE = pendingNeedsEdit[s.Id] !== undefined;
               return (
                 <React.Fragment key={s.Id}>
-                  <tr style={{ background: rowErr ? tokens.color.dangerBg : undefined }}>
+                  <tr
+                    style={{
+                      background: rowErr ? tokens.color.dangerBg : (selected.has(s.Id) ? tokens.color.tint : undefined),
+                      cursor: isSupervisor ? 'pointer' : 'default',
+                      userSelect: isSupervisor ? 'none' : undefined
+                    }}
+                    onClick={(e) => onRowClick(e, s.Id)}
+                  >
                     {isSupervisor && (
                       <td style={{ ...td, padding: '9px 10px' }}>
                         <input
                           type="checkbox"
                           checked={selected.has(s.Id)}
-                          onChange={() => toggleSelect(s.Id)}
+                          onChange={(e) => { e.stopPropagation(); toggleSelect(s.Id); }}
+                          onClick={(e) => e.stopPropagation()}
                           style={{ cursor: 'pointer' }}
                         />
                       </td>
