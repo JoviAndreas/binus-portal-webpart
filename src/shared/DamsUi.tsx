@@ -373,21 +373,38 @@ export const PicCombo: React.FC<{
       e.Email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) { setCoords(null); return; }
+    const update = (): void => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setCoords({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 220) });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
     const handler = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch('');
-      }
+      const target = e.target as Node;
+      if (ref.current && ref.current.contains(target)) return;
+      const pop = document.getElementById('dams-pic-popover');
+      if (pop && pop.contains(target)) return;
+      setOpen(false);
+      setSearch('');
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handler);
+    };
   }, [open]);
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={ref} style={{ display: 'inline-block' }}>
       <button
+        ref={btnRef}
         type="button"
         disabled={disabled}
         onClick={() => { if (!disabled) setOpen((o) => !o); }}
@@ -426,21 +443,21 @@ export const PicCombo: React.FC<{
         </span>
         {displayName}
       </button>
-      {open && (
+      {open && coords && (
         <div
+          id="dams-pic-popover"
           style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            zIndex: 300,
-            minWidth: 220,
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            minWidth: coords.width,
             maxHeight: 260,
             overflowY: 'auto',
             background: '#fff',
             border: `1px solid ${tokens.color.line}`,
             borderRadius: tokens.radius.card,
-            boxShadow: tokens.shadow.lg,
-            marginTop: 4
+            boxShadow: tokens.shadow.lg
           }}
         >
           <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}` }}>
