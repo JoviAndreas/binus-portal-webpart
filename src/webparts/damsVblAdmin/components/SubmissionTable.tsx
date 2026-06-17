@@ -435,8 +435,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
       {error && <MessageBar kind="error">{error}</MessageBar>}
 
-      {/* Bulk bar (supervisor only, when selections exist) */}
-      {isSupervisor && selected.size > 0 && (
+      {/* Bulk bar (supervisor only, always visible; actions disabled when no selection) */}
+      {isSupervisor && (
         <div
           style={{
             position: 'sticky',
@@ -453,15 +453,15 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           }}
         >
           <span style={{ fontSize: tokens.font.small, color: '#fff', fontWeight: 700, marginRight: 4 }}>
-            {selected.size} selected
+            {selected.size > 0 ? `${selected.size} selected` : 'Select rows to bulk edit'}
           </span>
           {/* Assign PIC */}
           <div style={{ position: 'relative' }}>
             <GhostButton
               type="button"
-              disabled={bulkLoading}
+              disabled={bulkLoading || selected.size === 0}
               onClick={() => setBulkPop(bulkPop === 'pic' ? null : 'pic')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro }}
+              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
             >
               Assign PIC
             </GhostButton>
@@ -485,9 +485,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           <div style={{ position: 'relative' }}>
             <GhostButton
               type="button"
-              disabled={bulkLoading}
+              disabled={bulkLoading || selected.size === 0}
               onClick={() => setBulkPop(bulkPop === 'status' ? null : 'status')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro }}
+              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
             >
               Set Status
             </GhostButton>
@@ -511,9 +511,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           <div style={{ position: 'relative' }}>
             <GhostButton
               type="button"
-              disabled={bulkLoading}
+              disabled={bulkLoading || selected.size === 0}
               onClick={() => setBulkPop(bulkPop === 'bumper' ? null : 'bumper')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro }}
+              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
             >
               Set Bumper
             </GhostButton>
@@ -537,9 +537,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           <div style={{ position: 'relative' }}>
             <GhostButton
               type="button"
-              disabled={bulkLoading}
+              disabled={bulkLoading || selected.size === 0}
               onClick={() => setBulkPop(bulkPop === 'butuhedit' ? null : 'butuhedit')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro }}
+              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
             >
               Butuh Edit
             </GhostButton>
@@ -559,13 +559,15 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             </BulkPopover>
           </div>
           {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small }}
-          >
-            Clear
-          </button>
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small }}
+            >
+              Clear
+            </button>
+          )}
         </div>
       )}
 
