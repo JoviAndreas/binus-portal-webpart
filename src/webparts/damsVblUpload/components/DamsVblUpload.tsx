@@ -68,12 +68,12 @@ export const DamsVblUpload: React.FC<IDamsVblUploadProps> = ({ apiBaseUrl, apiRe
           if (b) {
             af = {
               found: true,
-              email: b.email || meInfo.email,
-              name: b.name || meInfo.name || '',
-              kodeDosen: b.kodeDosen || '',
-              kampus: mapCampus(b.campus),
-              fakultas: fuzzyPick(b.acadGroupDesc || '', fac) || '',
-              jurusan: fuzzyPick(b.acadOrgDesc || '', dep) || ''
+              email: b.Email || meInfo.email,
+              name: b.Name || meInfo.name || '',
+              kodeDosen: b.KodeDosen || '',
+              kampus: mapCampus(b.Campus),
+              fakultas: fuzzyPick(b.AcadGroupDesc || '', fac) || '',
+              jurusan: fuzzyPick(b.AcadOrgDesc || '', dep) || ''
             };
           }
         }

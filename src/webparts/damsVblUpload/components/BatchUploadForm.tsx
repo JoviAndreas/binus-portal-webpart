@@ -114,19 +114,19 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
         setLookupMsg(`No lecturer matched "${q}".`);
         return;
       }
-      const kampus = mapCampus(b.campus);
-      const fakultas = fuzzyPick(b.acadGroupDesc || '', faculties) || shared.Fakultas;
-      const jurusan = fuzzyPick(b.acadOrgDesc || '', departments) || shared.Jurusan;
+      const kampus = mapCampus(b.Campus);
+      const fakultas = fuzzyPick(b.AcadGroupDesc || '', faculties) || shared.Fakultas;
+      const jurusan = fuzzyPick(b.AcadOrgDesc || '', departments) || shared.Jurusan;
       setShared((p) => ({
         ...p,
-        Email: b.email || p.Email,
-        Name: b.name || p.Name,
-        KodeDosen: b.kodeDosen || p.KodeDosen,
+        Email: b.Email || p.Email,
+        Name: b.Name || p.Name,
+        KodeDosen: b.KodeDosen || p.KodeDosen,
         Kampus: kampus || p.Kampus,
         Fakultas: fakultas,
         Jurusan: jurusan
       }));
-      setLookupMsg(`Loaded ${b.name || ''} (${b.kodeDosen || ''}).`);
+      setLookupMsg(`Loaded ${b.Name || ''} (${b.KodeDosen || ''}).`);
     } catch (e) {
       setLookupMsg('Lookup failed. Check sign-in.');
     } finally {

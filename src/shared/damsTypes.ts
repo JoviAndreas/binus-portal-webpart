@@ -30,14 +30,14 @@ export interface IMeInfo {
 }
 
 export interface IBinusianInfo {
-  kodeDosen?: string;
-  email?: string;
-  name?: string;
-  campus?: string;
-  acadGroupDesc?: string;
-  acadOrgDesc?: string;
-  departmentDesc?: string;
-  tipeDosen?: string;
+  KodeDosen?: string;
+  Email?: string;
+  Name?: string;
+  Campus?: string;
+  AcadGroupDesc?: string;
+  AcadOrgDesc?: string;
+  DepartmentDesc?: string;
+  TipeDosen?: string;
 }
 
 export interface ISubmission {
