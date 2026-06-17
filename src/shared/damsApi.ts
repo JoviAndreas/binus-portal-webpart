@@ -2,9 +2,11 @@ import { AadHttpClient, HttpClientResponse, IHttpClientOptions } from '@microsof
 import {
   IMeInfo,
   IBinusianInfo,
+  IEditorInfo,
   ISubmission,
   IStatusHistory,
   ISubmissionPatch,
+  IBulkPatch,
   IListResult,
   IListFilter
 } from './damsTypes';
@@ -12,6 +14,8 @@ import {
 export type SubmitResult =
   | { ok: true; codeNumber: string; linkDamsShare?: string; raw: unknown }
   | { ok: false; status: number; message: string };
+
+export type BulkPatchResult = { updated: number; failed: { id: string; reason: string }[] };
 
 // AadHttpClient wrapper for the DAMS API. One factory client, lazily acquired.
 export class DamsApi {
@@ -43,6 +47,10 @@ export class DamsApi {
     return this.getJson<IMeInfo>('/Me');
   }
 
+  public listEditors(): Promise<IEditorInfo[] | null> {
+    return this.getJson<IEditorInfo[]>('/Editors');
+  }
+
   public mySubmissions(email: string): Promise<ISubmission[] | null> {
     if (!email) return Promise.resolve(null);
     return this.getJson<ISubmission[]>(`/Submissions/me?email=${encodeURIComponent(email)}`);
@@ -70,7 +78,6 @@ export class DamsApi {
 
   public async submitVideo(form: FormData): Promise<SubmitResult> {
     const c = await this.getClient();
-    // Do not set Content-Type: the browser adds the multipart boundary.
     const opts: IHttpClientOptions = { body: form as unknown as string };
     const r = await c.post(this.url('/VideoSubmission'), AadHttpClient.configurations.v1, opts);
     const text = await r.text();
@@ -95,6 +102,9 @@ export class DamsApi {
     if (filter.dosen) qs.set('dosen', filter.dosen);
     if (filter.kodeMK) qs.set('kodeMK', filter.kodeMK);
     if (filter.q) qs.set('q', filter.q);
+    if (filter.assignedTo) qs.set('assignedTo', filter.assignedTo);
+    if (filter.excludeStatus) qs.set('excludeStatus', 'true');
+    if (filter.unassigned) qs.set('unassigned', 'true');
     qs.set('page', String(filter.page || 1));
     qs.set('pageSize', String(filter.pageSize || 50));
     return this.getJson<IListResult>(`/Submissions?${qs.toString()}`);
@@ -120,5 +130,19 @@ export class DamsApi {
     });
     if (!r.ok) return null;
     return (await r.json()) as ISubmission;
+  }
+
+  public async bulkPatch(body: IBulkPatch): Promise<BulkPatchResult | null> {
+    const c = await this.getClient();
+    const opts: IHttpClientOptions = {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Ids: body.ids, Patch: body.patch })
+    };
+    const r = await c.fetch(this.url('/Submissions/bulk'), AadHttpClient.configurations.v1, {
+      ...opts,
+      method: 'PATCH'
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as BulkPatchResult;
   }
 }

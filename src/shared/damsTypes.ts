@@ -27,6 +27,14 @@ export interface IMeInfo {
   Email: string | null;
   Name: string | null;
   IsAdmin: boolean;
+  IsEditor: boolean;
+  IsSupervisor: boolean;
+}
+
+export interface IEditorInfo {
+  Email: string;
+  Name: string;
+  Jabatan: string;
 }
 
 export interface IBinusianInfo {
@@ -102,6 +110,11 @@ export interface ISubmissionPatch {
   Tags?: string;
 }
 
+export interface IBulkPatch {
+  ids: string[];
+  patch: ISubmissionPatch;
+}
+
 export interface IListResult {
   total: number;
   page: number;
@@ -114,6 +127,9 @@ export interface IListFilter {
   dosen?: string;
   kodeMK?: string;
   q?: string;
+  assignedTo?: string;
+  excludeStatus?: boolean;
+  unassigned?: boolean;
   page?: number;
   pageSize?: number;
 }

@@ -1,18 +1,18 @@
 import * as React from 'react';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { ISubmission, IStatusHistory, ISubmissionPatch, STATUS_VALUES, BUMPER_VALUES } from '../../../shared/damsTypes';
-import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, MessageBar, StatusBadge } from '../../../shared/DamsUi';
+import { ISubmission, IStatusHistory, ISubmissionPatch } from '../../../shared/damsTypes';
+import { Field, TextInput, TextArea, PrimaryButton, GhostButton, MessageBar, StarRating } from '../../../shared/DamsUi';
 import { HistoryTimeline } from './HistoryTimeline';
 
 export interface ISubmissionEditorProps {
   api: DamsApi;
   id: string;
   onClose: () => void;
-  onSaved: (updated: ISubmission) => void;
+  onSaved: () => void;
 }
 
-const QUALITY = ['1', '2', '3', '4', '5'];
+const starToNum = (v: string | undefined): number => parseInt(v || '0', 10) || 0;
 
 export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, onClose, onSaved }) => {
   const [loading, setLoading] = React.useState(true);
@@ -27,6 +27,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
     let active = true;
     setLoading(true);
     setHistoryLoading(true);
+    setPatch({});
     api.getSubmission(id).then((s) => {
       if (!active) return;
       setSub(s);
@@ -55,13 +56,13 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
     api.patchSubmission(id, patch).then((updated) => {
       setSaving(false);
       if (!updated) {
-        setMessage({ kind: 'error', text: 'Save failed. Check the values and your admin access.' });
+        setMessage({ kind: 'error', text: 'Save failed. Check your access.' });
         return;
       }
       setSub(updated);
       setPatch({});
       setMessage({ kind: 'success', text: 'Saved.' });
-      onSaved(updated);
+      onSaved();
       api.getHistory(id).then((h) => setHistory(h)).catch(() => undefined);
     }).catch(() => {
       setSaving(false);
@@ -76,7 +77,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
         className="dams-scope"
         style={{
           position: 'relative',
-          width: 'min(560px, 100%)',
+          width: 'min(540px, 100%)',
           height: '100%',
           background: tokens.color.bg,
           boxShadow: tokens.shadow.lg,
@@ -90,7 +91,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '18px 24px',
+            padding: '16px 22px',
             borderBottom: `3px solid ${tokens.color.orange}`,
             position: 'sticky',
             top: 0,
@@ -98,95 +99,108 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, on
             zIndex: 1
           }}
         >
-          <h3 style={{ margin: 0, fontSize: tokens.font.h3, color: tokens.color.ink, fontWeight: 800 }}>Submission</h3>
-          <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 22, cursor: 'pointer', color: tokens.color.text, lineHeight: 1 }}>
+          <div>
+            <div style={{ fontSize: tokens.font.label, color: tokens.color.text, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+              Submission
+            </div>
+            {sub && (
+              <div style={{ fontSize: tokens.font.h3, color: tokens.color.ink, fontWeight: 800, marginTop: 2 }}>
+                {sub.CodeNumber || id.slice(0, 8)}
+              </div>
+            )}
+          </div>
+          <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: tokens.color.text, lineHeight: 1 }}>
             x
           </button>
         </div>
+
         <div style={{ padding: tokens.space.lg }}>
+          {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
+          {!loading && !sub && <MessageBar kind="error">Submission not found.</MessageBar>}
 
-        {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
-        {!loading && !sub && <MessageBar kind="error">Submission not found.</MessageBar>}
+          {!loading && sub && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
+              {/* Meta */}
+              <div style={{ fontSize: tokens.font.small, color: tokens.color.text, lineHeight: 1.8 }}>
+                <div><strong style={{ color: tokens.color.ink }}>{sub.Name}</strong> ({sub.KodeDosen})</div>
+                <div>{sub.KodeMatakuliah} - {sub.NamaMatakuliah}</div>
+                <div>Kampus {sub.Kampus} / {sub.Jurusan}</div>
+                <div>Week {sub.Week} Sesi {sub.Session}</div>
+                {sub.SubmissionTime && <div>Submitted {new Date(sub.SubmissionTime).toLocaleString()}</div>}
+                {sub.LinkDamsShare && (
+                  <a href={sub.LinkDamsShare} target="_blank" rel="noreferrer" style={{ color: tokens.color.blue, fontSize: tokens.font.small }}>
+                    Open in DAMS
+                  </a>
+                )}
+              </div>
 
-        {!loading && sub && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.sm, flexWrap: 'wrap' }}>
-              <strong style={{ color: tokens.color.ink }}>{sub.CodeNumber}</strong>
-              <StatusBadge status={sub.Status} />
-              {sub.LinkDamsShare && (
-                <a href={sub.LinkDamsShare} target="_blank" rel="noreferrer" style={{ fontSize: tokens.font.small }}>
-                  Open in DAMS
-                </a>
-              )}
-            </div>
+              {/* Quality stars */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: tokens.space.md }}>
+                <Field label="Kualitas Video">
+                  <StarRating
+                    value={starToNum(cur('KualitasVideo', sub.KualitasVideo || '0') as string)}
+                    onChange={(v) => setP('KualitasVideo', String(v))}
+                  />
+                </Field>
+                <Field label="Kualitas Audio">
+                  <StarRating
+                    value={starToNum(cur('KualitasAudio', sub.KualitasAudio || '0') as string)}
+                    onChange={(v) => setP('KualitasAudio', String(v))}
+                  />
+                </Field>
+                <Field label="Kualitas Konten">
+                  <StarRating
+                    value={starToNum(cur('KualitasKonten', sub.KualitasKonten || '0') as string)}
+                    onChange={(v) => setP('KualitasKonten', String(v))}
+                  />
+                </Field>
+              </div>
 
-            <div style={{ fontSize: tokens.font.small, color: tokens.color.text, lineHeight: 1.7 }}>
-              <div>{sub.Name} ({sub.KodeDosen}) - {sub.Email}</div>
-              <div>{sub.KodeMatakuliah} - {sub.NamaMatakuliah}</div>
-              <div>Kampus {sub.Kampus} / {sub.Fakultas} / {sub.Jurusan}</div>
-              <div>Week {sub.Week} Session {sub.Session}</div>
-              {sub.SubmissionTime && <div>Submitted {new Date(sub.SubmissionTime).toLocaleString()}</div>}
-              {sub.ReviewedBy && <div>Reviewed by {sub.ReviewedBy} {sub.ReviewedAt ? `at ${new Date(sub.ReviewedAt).toLocaleString()}` : ''}</div>}
-            </div>
-
-            <div style={{ display: 'grid', gap: tokens.space.md, gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              <Field label="Status">
-                <Select options={STATUS_VALUES as unknown as string[]} value={cur('Status', sub.Status || 'Pending') as string} onChange={(e) => setP('Status', e.target.value)} />
+              {/* Review note */}
+              <Field label="Review Note">
+                <TextArea
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Notes for the lecturer or production team..."
+                  value={cur('ReviewNote', sub.ReviewNote || '') as string}
+                  onChange={(e) => setP('ReviewNote', e.target.value)}
+                />
               </Field>
-              <Field label="Status Bumper">
-                <Select allowEmpty options={BUMPER_VALUES} value={cur('StatusAdaBumper', sub.StatusAdaBumper || '') as string} onChange={(e) => setP('StatusAdaBumper', e.target.value)} />
+
+              {/* Editable fields */}
+              <Field label="Nama Matakuliah">
+                <TextInput maxLength={256} value={cur('NamaMatakuliah', sub.NamaMatakuliah || '') as string} onChange={(e) => setP('NamaMatakuliah', e.target.value)} />
               </Field>
-              <Field label="PIC Editing">
-                <TextInput maxLength={100} value={cur('PicEditing', sub.PicEditing || '') as string} onChange={(e) => setP('PicEditing', e.target.value)} />
+              <Field label="Topik">
+                <TextInput maxLength={512} value={cur('Topik', sub.Topik || '') as string} onChange={(e) => setP('Topik', e.target.value)} />
+              </Field>
+              <Field label="Description">
+                <TextArea rows={3} maxLength={4000} value={cur('Description', sub.Description || '') as string} onChange={(e) => setP('Description', e.target.value)} />
+              </Field>
+              <Field label="Tags">
+                <TextInput maxLength={512} value={cur('Tags', sub.Tags || '') as string} onChange={(e) => setP('Tags', e.target.value)} />
               </Field>
               <Field label="QC">
                 <TextInput maxLength={100} value={cur('Qc', sub.Qc || '') as string} onChange={(e) => setP('Qc', e.target.value)} />
               </Field>
-              <Field label="Kualitas Video">
-                <Select allowEmpty options={QUALITY} value={cur('KualitasVideo', sub.KualitasVideo || '') as string} onChange={(e) => setP('KualitasVideo', e.target.value)} />
-              </Field>
-              <Field label="Kualitas Audio">
-                <Select allowEmpty options={QUALITY} value={cur('KualitasAudio', sub.KualitasAudio || '') as string} onChange={(e) => setP('KualitasAudio', e.target.value)} />
-              </Field>
-              <Field label="Kualitas Konten">
-                <Select allowEmpty options={QUALITY} value={cur('KualitasKonten', sub.KualitasKonten || '') as string} onChange={(e) => setP('KualitasKonten', e.target.value)} />
-              </Field>
-              <Field label="Butuh Edit">
-                <Select options={['No', 'Yes']} value={(cur('ButuhEdit', !!sub.ButuhEdit) ? 'Yes' : 'No')} onChange={(e) => setP('ButuhEdit', e.target.value === 'Yes')} />
-              </Field>
+
+              {message && <MessageBar kind={message.kind}>{message.text}</MessageBar>}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm }}>
+                <GhostButton type="button" onClick={onClose}>Close</GhostButton>
+                <PrimaryButton type="button" onClick={save} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save changes'}
+                </PrimaryButton>
+              </div>
+
+              <div style={{ borderTop: `1px solid ${tokens.color.line}`, paddingTop: tokens.space.md }}>
+                <div style={{ fontSize: tokens.font.body, color: tokens.color.ink, fontWeight: 700, marginBottom: tokens.space.md }}>
+                  Status history
+                </div>
+                <HistoryTimeline history={history} loading={historyLoading} />
+              </div>
             </div>
-
-            <Field label="Nama Matakuliah">
-              <TextInput maxLength={256} value={cur('NamaMatakuliah', sub.NamaMatakuliah || '') as string} onChange={(e) => setP('NamaMatakuliah', e.target.value)} />
-            </Field>
-            <Field label="Topik">
-              <TextInput maxLength={512} value={cur('Topik', sub.Topik || '') as string} onChange={(e) => setP('Topik', e.target.value)} />
-            </Field>
-            <Field label="Description">
-              <TextArea rows={3} maxLength={4000} value={cur('Description', sub.Description || '') as string} onChange={(e) => setP('Description', e.target.value)} />
-            </Field>
-            <Field label="Tags">
-              <TextInput maxLength={512} value={cur('Tags', sub.Tags || '') as string} onChange={(e) => setP('Tags', e.target.value)} />
-            </Field>
-            <Field label="Review Note">
-              <TextArea rows={3} maxLength={2000} value={cur('ReviewNote', sub.ReviewNote || '') as string} onChange={(e) => setP('ReviewNote', e.target.value)} />
-            </Field>
-
-            {message && <MessageBar kind={message.kind}>{message.text}</MessageBar>}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm }}>
-              <GhostButton type="button" onClick={onClose}>Close</GhostButton>
-              <PrimaryButton type="button" onClick={save} disabled={saving}>
-                {saving ? 'Saving...' : 'Save changes'}
-              </PrimaryButton>
-            </div>
-
-            <div style={{ borderTop: `1px solid ${tokens.color.line}`, paddingTop: tokens.space.md }}>
-              <h4 style={{ margin: `0 0 ${tokens.space.md}`, fontSize: tokens.font.body, color: tokens.color.ink, fontWeight: 700 }}>Status history</h4>
-              <HistoryTimeline history={history} loading={historyLoading} />
-            </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { tokens } from './tokens';
 import { BinusLogo } from './BinusLogo';
-import { SubmissionStatus } from './damsTypes';
+import { SubmissionStatus, STATUS_VALUES, BUMPER_VALUES, IEditorInfo } from './damsTypes';
 
 // Reusable binus.ac.id-styled primitives shared by the DAMS VBL webparts.
 
@@ -199,6 +199,333 @@ export const StatusBadge: React.FC<{ status?: string }> = ({ status }) => {
     </span>
   );
 };
+
+const STATUS_PILL_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
+  Pending:    { bg: '#E7F3FB', fg: tokens.color.blueDark,  border: tokens.color.blue },
+  InReview:   { bg: '#FFF8E1', fg: '#9A5B0E',              border: '#F3931B' },
+  NeedsEdit:  { bg: tokens.color.dangerBg, fg: tokens.color.danger, border: tokens.color.danger },
+  Approved:   { bg: tokens.color.successBg, fg: tokens.color.success, border: tokens.color.success },
+  Rejected:   { bg: '#F1F1F1', fg: tokens.color.text,      border: '#999' },
+  Published:  { bg: '#E8F5E9', fg: '#11663A',              border: '#2E7D32' }
+};
+
+export const StatusPills: React.FC<{
+  value?: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}> = ({ value, onChange, disabled }) => (
+  <div role="radiogroup" style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+    {STATUS_VALUES.map((s) => {
+      const c = STATUS_PILL_COLORS[s] || { bg: tokens.color.bgSoft, fg: tokens.color.text, border: '#aaa' };
+      const active = value === s;
+      return (
+        <button
+          key={s}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          disabled={disabled}
+          onClick={() => onChange(s)}
+          style={{
+            padding: '2px 7px',
+            fontSize: '10.5px',
+            fontFamily: tokens.font.family,
+            fontWeight: 700,
+            border: `1px solid ${active ? c.border : tokens.color.line}`,
+            borderRadius: tokens.radius.pill,
+            cursor: disabled ? 'default' : 'pointer',
+            background: active ? c.bg : '#fff',
+            color: active ? c.fg : tokens.color.text,
+            opacity: disabled ? 0.55 : 1,
+            transition: 'all .1s',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {s}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const BUMPER_SHORT: Record<string, string> = {
+  'Ada Bumper':       'Ada',
+  'Tidak Ada Bumper': 'Tidak Ada',
+  'Tidak Berlaku':    'N/A'
+};
+
+export const BumperSegmented: React.FC<{
+  value?: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}> = ({ value, onChange, disabled }) => (
+  <div
+    role="radiogroup"
+    style={{
+      display: 'inline-flex',
+      border: `1px solid ${tokens.color.blue}`,
+      borderRadius: tokens.radius.control,
+      overflow: 'hidden'
+    }}
+  >
+    {BUMPER_VALUES.map((b, i) => {
+      const active = value === b;
+      return (
+        <button
+          key={b}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          disabled={disabled}
+          onClick={() => onChange(b)}
+          title={b}
+          style={{
+            padding: '4px 8px',
+            fontSize: '10.5px',
+            fontFamily: tokens.font.family,
+            fontWeight: 700,
+            border: 'none',
+            borderLeft: i > 0 ? `1px solid ${tokens.color.blue}` : 'none',
+            cursor: disabled ? 'default' : 'pointer',
+            background: active ? tokens.color.blue : '#fff',
+            color: active ? '#fff' : tokens.color.blue,
+            opacity: disabled ? 0.55 : 1,
+            transition: 'all .1s',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {BUMPER_SHORT[b] || b}
+        </button>
+      );
+    })}
+  </div>
+);
+
+export const ToggleSwitch: React.FC<{
+  value?: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+}> = ({ value, onChange, disabled, label }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={!!value}
+      disabled={disabled}
+      onClick={() => onChange(!value)}
+      style={{
+        width: 34,
+        height: 18,
+        borderRadius: 9,
+        border: 'none',
+        padding: 0,
+        background: value ? tokens.color.blue : tokens.color.line,
+        cursor: disabled ? 'default' : 'pointer',
+        position: 'relative',
+        transition: 'background .15s',
+        opacity: disabled ? 0.55 : 1,
+        flexShrink: 0
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: value ? 16 : 2,
+          width: 14,
+          height: 14,
+          borderRadius: '50%',
+          background: '#fff',
+          transition: 'left .15s',
+          boxShadow: '0 1px 3px rgba(0,0,0,.2)'
+        }}
+      />
+    </button>
+    {label && <span style={{ fontSize: tokens.font.small, color: tokens.color.ink }}>{label}</span>}
+  </div>
+);
+
+export const PicCombo: React.FC<{
+  value?: string;
+  editors: IEditorInfo[];
+  onChange: (email: string) => void;
+  disabled?: boolean;
+}> = ({ value, editors, onChange, disabled }) => {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  const current = editors.find((e) => e.Email.toLowerCase() === (value || '').toLowerCase());
+  const displayName = current
+    ? current.Name.split(' ')[0]
+    : value
+    ? value.split('@')[0]
+    : 'Unassigned';
+  const initials = current
+    ? current.Name.split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()
+    : displayName.slice(0, 2).toUpperCase();
+
+  const filtered = editors.filter(
+    (e) =>
+      !search ||
+      e.Name.toLowerCase().includes(search.toLowerCase()) ||
+      e.Email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 9px 3px 5px',
+          border: `1px solid ${tokens.color.line}`,
+          borderRadius: tokens.radius.pill,
+          background: '#fff',
+          cursor: disabled ? 'default' : 'pointer',
+          fontSize: '11px',
+          fontFamily: tokens.font.family,
+          color: tokens.color.ink,
+          opacity: disabled ? 0.55 : 1,
+          transition: 'border-color .1s'
+        }}
+      >
+        <span
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            background: value ? tokens.color.blue : tokens.color.line,
+            color: value ? '#fff' : tokens.color.text,
+            fontSize: '9px',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}
+        >
+          {initials}
+        </span>
+        {displayName}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            zIndex: 300,
+            minWidth: 220,
+            maxHeight: 260,
+            overflowY: 'auto',
+            background: '#fff',
+            border: `1px solid ${tokens.color.line}`,
+            borderRadius: tokens.radius.card,
+            boxShadow: tokens.shadow.lg,
+            marginTop: 4
+          }}
+        >
+          <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}` }}>
+            <input
+              className="dams-in"
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '11px' }}
+              autoFocus
+            />
+          </div>
+          {filtered.map((e) => (
+            <button
+              key={e.Email}
+              type="button"
+              className={`dams-opt${e.Email.toLowerCase() === (value || '').toLowerCase() ? ' dams-opt-sel' : ''}`}
+              onClick={() => { onChange(e.Email); setOpen(false); setSearch(''); }}
+            >
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  background: tokens.color.blue,
+                  color: '#fff',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                {e.Name.split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()}
+              </span>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{e.Name}</div>
+                <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{e.Jabatan}</div>
+              </div>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>
+              No editors found.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const StarRating: React.FC<{
+  value?: number;
+  max?: number;
+  onChange?: (v: number) => void;
+  disabled?: boolean;
+}> = ({ value = 0, max = 5, onChange, disabled }) => (
+  <div style={{ display: 'inline-flex', gap: 2 }}>
+    {Array.from({ length: max }, (_, i) => (
+      <button
+        key={i}
+        type="button"
+        disabled={disabled || !onChange}
+        onClick={() => onChange && onChange(i + 1 === value ? 0 : i + 1)}
+        style={{
+          width: 22,
+          height: 22,
+          fontSize: 17,
+          lineHeight: 1,
+          background: 'transparent',
+          border: 'none',
+          cursor: (disabled || !onChange) ? 'default' : 'pointer',
+          color: i < value ? tokens.color.orange : tokens.color.line,
+          padding: 0,
+          transition: 'color .1s'
+        }}
+      >
+        {'★'}
+      </button>
+    ))}
+  </div>
+);
 
 export const MessageBar: React.FC<{ kind: 'error' | 'success' | 'info'; children: React.ReactNode }> = ({ kind, children }) => {
   const map = {

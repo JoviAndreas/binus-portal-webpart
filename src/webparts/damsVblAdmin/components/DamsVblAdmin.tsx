@@ -2,7 +2,7 @@ import * as React from 'react';
 import { AadHttpClient } from '@microsoft/sp-http';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { IMeInfo } from '../../../shared/damsTypes';
+import { IMeInfo, IEditorInfo } from '../../../shared/damsTypes';
 import { MessageBar, DamsStyles, HeaderBar } from '../../../shared/DamsUi';
 import { SubmissionTable } from './SubmissionTable';
 import { SubmissionEditor } from './SubmissionEditor';
@@ -22,15 +22,18 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
 
   const [loading, setLoading] = React.useState(true);
   const [me, setMe] = React.useState<IMeInfo | null>(null);
+  const [editors, setEditors] = React.useState<IEditorInfo[]>([]);
   const [error, setError] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [reloadToken, setReloadToken] = React.useState(0);
 
   React.useEffect(() => {
     let active = true;
-    api.me().then((m) => {
+    setLoading(true);
+    Promise.all([api.me(), api.listEditors()]).then(([m, edList]) => {
       if (!active) return;
       setMe(m);
+      setEditors(edList || []);
       setLoading(false);
     }).catch(() => {
       if (!active) return;
@@ -39,6 +42,8 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
     });
     return () => { active = false; };
   }, [api]);
+
+  const hasAccess = me && (me.IsAdmin || me.IsEditor);
 
   return (
     <div
@@ -50,24 +55,26 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
       }}
     >
       <DamsStyles />
-      <div
-        style={{
-          background: 'transparent'
-        }}
-      >
-        <HeaderBar title="Admin Review" />
+      <div style={{ background: 'transparent' }}>
+        <HeaderBar title="DAMS Review" />
         <div style={{ padding: '24px 24px 28px' }}>
           {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
 
-          {!loading && (error || !me || !me.IsAdmin) && (
+          {!loading && (error || !hasAccess) && (
             <MessageBar kind="error">
-              No admin access. {me && me.Email ? `Signed in as ${me.Email}.` : ''} Contact the DAMS administrator to be added to the allowlist.
+              No access. {me && me.Email ? `Signed in as ${me.Email}.` : ''} Contact the DAMS administrator.
             </MessageBar>
           )}
 
-          {!loading && me && me.IsAdmin && (
+          {!loading && hasAccess && me && (
             <>
-              <SubmissionTable api={api} reloadToken={reloadToken} onRowClick={(id) => setEditingId(id)} />
+              <SubmissionTable
+                api={api}
+                reloadToken={reloadToken}
+                onOpenDrawer={(id) => setEditingId(id)}
+                me={me}
+                editors={editors}
+              />
               {editingId && (
                 <SubmissionEditor
                   api={api}
