@@ -24,9 +24,9 @@ export const BUMPER_VALUES: string[] = [
 ];
 
 export interface IMeInfo {
-  email: string | null;
-  name: string | null;
-  isAdmin: boolean;
+  Email: string | null;
+  Name: string | null;
+  IsAdmin: boolean;
 }
 
 export interface IBinusianInfo {

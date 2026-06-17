@@ -56,20 +56,20 @@ export const DamsVblUpload: React.FC<IDamsVblUploadProps> = ({ apiBaseUrl, apiRe
 
         let af: IAutofill = {
           found: false,
-          email: (meInfo && meInfo.email) || '',
-          name: (meInfo && meInfo.name) || '',
+          email: (meInfo && meInfo.Email) || '',
+          name: (meInfo && meInfo.Name) || '',
           kodeDosen: '',
           kampus: 'Jakarta',
           fakultas: '',
           jurusan: ''
         };
-        if (meInfo && meInfo.email) {
-          const b = await api.lookupBinusian(meInfo.email);
+        if (meInfo && meInfo.Email) {
+          const b = await api.lookupBinusian(meInfo.Email);
           if (b) {
             af = {
               found: true,
-              email: b.Email || meInfo.email,
-              name: b.Name || meInfo.name || '',
+              email: b.Email || meInfo.Email,
+              name: b.Name || meInfo.Name || '',
               kodeDosen: b.KodeDosen || '',
               kampus: mapCampus(b.Campus),
               fakultas: fuzzyPick(b.AcadGroupDesc || '', fac) || '',

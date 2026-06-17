@@ -59,13 +59,13 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
         <div style={{ padding: '24px 24px 28px' }}>
           {loading && <p style={{ color: tokens.color.text }}>Loading...</p>}
 
-          {!loading && (error || !me || !me.isAdmin) && (
+          {!loading && (error || !me || !me.IsAdmin) && (
             <MessageBar kind="error">
-              No admin access. {me && me.email ? `Signed in as ${me.email}.` : ''} Contact the DAMS administrator to be added to the allowlist.
+              No admin access. {me && me.Email ? `Signed in as ${me.Email}.` : ''} Contact the DAMS administrator to be added to the allowlist.
             </MessageBar>
           )}
 
-          {!loading && me && me.isAdmin && (
+          {!loading && me && me.IsAdmin && (
             <>
               <SubmissionTable api={api} reloadToken={reloadToken} onRowClick={(id) => setEditingId(id)} />
               {editingId && (
