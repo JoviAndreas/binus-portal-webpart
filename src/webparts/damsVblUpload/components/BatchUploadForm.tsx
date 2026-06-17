@@ -82,6 +82,7 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
   const [history, setHistory] = React.useState<ISubmission[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [summary, setSummary] = React.useState<{ shared: IShared; rows: IRow[] } | null>(null);
 
   const refreshHistory = React.useCallback(async (email: string): Promise<void> => {
     if (!email) return;
@@ -215,9 +216,19 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
       }
     } finally {
       setRunning(false);
+      const doneRows = rows.filter((r) => r.status === 'done');
+      if (doneRows.length > 0) {
+        setSummary({ shared: { ...shared }, rows: doneRows });
+      }
       if (shared.Email) void refreshHistory(shared.Email);
-      setHistoryOpen(true);
     }
+  };
+
+  const startNewBatch = (): void => {
+    setSummary(null);
+    setRows([makeRow()]);
+    setShared((p) => ({ ...p, KodeMatakuliah: '', NamaMatakuliah: '', RumpunIlmu: '', Tags: '' }));
+    setError('');
   };
 
   function statusBg(s: string | undefined): string {
@@ -255,6 +266,10 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
     done: tokens.color.success,
     error: tokens.color.danger
   };
+
+  if (summary) {
+    return <SummaryView summary={summary} onNew={startNewBatch} />;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
@@ -585,3 +600,102 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
     </div>
   );
 };
+
+const SummaryView: React.FC<{ summary: { shared: IShared; rows: IRow[] }; onNew: () => void }> = ({ summary, onNew }) => {
+  const { shared, rows } = summary;
+  const total = rows.length;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.md, marginBottom: tokens.space.md }}>
+          <span style={{ width: 44, height: 44, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: 22, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 44px' }}>✓</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: tokens.font.h3, color: tokens.color.ink, fontWeight: 700 }}>
+              {total} video{total === 1 ? '' : 's'} uploaded
+            </div>
+            <div style={{ fontSize: tokens.font.label, color: tokens.color.text, marginTop: 2 }}>
+              Confirmation email sent to <strong>{shared.Email}</strong>. Below is the recap.
+            </div>
+          </div>
+          <PrimaryButton type="button" onClick={onNew}>Upload more videos</PrimaryButton>
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle sub="These applied to every video in the batch.">Shared details</CardTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: tokens.space.md }}>
+          <SumField col={4} label="Lecturer">{shared.Name} {shared.KodeDosen ? `(${shared.KodeDosen})` : ''}</SumField>
+          <SumField col={4} label="Email">{shared.Email}</SumField>
+          <SumField col={4} label="Kampus">{shared.Kampus}</SumField>
+          <SumField col={6} label="Fakultas">{shared.Fakultas}</SumField>
+          <SumField col={6} label="Jurusan">{shared.Jurusan}</SumField>
+          <SumField col={3} label="Kode MK">{shared.KodeMatakuliah}</SumField>
+          <SumField col={5} label="Nama MK">{shared.NamaMatakuliah}</SumField>
+          <SumField col={4} label="Rumpun Ilmu">{shared.RumpunIlmu}</SumField>
+          <SumField col={12} label="Tags / Keywords">{buildTags(shared.Tags, shared.Kampus)}</SumField>
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle sub={`${total} item${total === 1 ? '' : 's'} successfully uploaded.`}>Videos uploaded</CardTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.md }}>
+          {rows.map((r, idx) => (
+            <div
+              key={r.id}
+              style={{
+                border: `1px solid ${tokens.color.tintBorder}`,
+                background: tokens.color.tint,
+                borderRadius: tokens.radius.md,
+                padding: tokens.space.md,
+                display: 'grid',
+                gridTemplateColumns: '36px 1fr auto',
+                gap: tokens.space.md,
+                alignItems: 'start'
+              }}
+            >
+              <span style={{ width: 36, height: 36, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                {idx + 1}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: tokens.space.sm, marginBottom: 6 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: tokens.font.body, fontWeight: 700, color: tokens.color.blueDark }}>{r.codeNumber}</span>
+                  <span style={{ fontSize: tokens.font.body, fontWeight: 700, color: tokens.color.ink }}>{r.JudulVideo || r.Topik}</span>
+                </div>
+                <div style={{ fontSize: tokens.font.label, color: tokens.color.text, marginBottom: tokens.space.sm, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.file ? r.file.name : ''}{r.file ? ` · ${(r.file.size / 1024 / 1024).toFixed(1)} MB` : ''}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: tokens.space.sm }}>
+                  <SumField col={2} label="Week">{r.Week}</SumField>
+                  <SumField col={2} label="Session">{r.Session}</SumField>
+                  <SumField col={8} label="Topik">{r.Topik}</SumField>
+                </div>
+              </div>
+              {r.link && (
+                <a
+                  href={r.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="dams-btn-ghost"
+                  style={{ textDecoration: 'none', whiteSpace: 'nowrap', alignSelf: 'center' }}
+                >
+                  Open in SharePoint
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+const SumField: React.FC<{ col: number; label: string; children: React.ReactNode }> = ({ col, label, children }) => (
+  <div style={{ gridColumn: `span ${col} / span ${col}`, minWidth: 0 }}>
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: tokens.color.text, textTransform: 'uppercase', marginBottom: 2 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: tokens.font.body, color: tokens.color.ink, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {children || '-'}
+    </div>
+  </div>
+);
