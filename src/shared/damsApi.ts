@@ -100,7 +100,7 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`);
   }
 
-  public async listSubmissions(filter: IListFilter): Promise<IListResult | null> {
+  private buildSubmissionQs(filter: IListFilter): URLSearchParams {
     const qs = new URLSearchParams();
     if (filter.status) qs.set('status', filter.status);
     if (filter.dosen) qs.set('dosen', filter.dosen);
@@ -109,9 +109,29 @@ export class DamsApi {
     if (filter.assignedTo) qs.set('assignedTo', filter.assignedTo);
     if (filter.excludeStatus) qs.set('excludeStatus', 'true');
     if (filter.unassigned) qs.set('unassigned', 'true');
+    if (filter.year) qs.set('year', String(filter.year));
+    return qs;
+  }
+
+  public async listSubmissions(filter: IListFilter): Promise<IListResult | null> {
+    const qs = this.buildSubmissionQs(filter);
     qs.set('page', String(filter.page || 1));
     qs.set('pageSize', String(filter.pageSize || 50));
     return this.getJson<IListResult>(`/Submissions?${qs.toString()}`);
+  }
+
+  public async exportExcel(filter: IListFilter): Promise<void> {
+    const qs = this.buildSubmissionQs(filter);
+    const c = await this.getClient();
+    const r: HttpClientResponse = await c.get(this.url(`/Submissions/export?${qs.toString()}`), AadHttpClient.configurations.v1);
+    if (!r.ok) throw new Error(`Export failed: ${r.status}`);
+    const blob = await r.blob();
+    const label = filter.year ? `submissions_${filter.year}` : 'submissions_all';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${label}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   public getSubmission(id: string): Promise<ISubmission | null> {

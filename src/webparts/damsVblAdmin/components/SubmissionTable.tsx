@@ -95,7 +95,7 @@ const ConfirmModal: React.FC<{
 export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors }) => {
   const isSupervisor = me.IsSupervisor;
   const canEdit = me.IsAdmin || me.IsEditor;
-  const defaultChip: FilterChip = (me.IsEditor && !isSupervisor) ? 'myqueue' : 'allactive';
+  const defaultChip: FilterChip = (me.IsEditor || isSupervisor) ? 'myqueue' : 'allactive';
   const isLecturer = !!me.Email?.toLowerCase().endsWith('@binus.ac.id');
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
@@ -115,6 +115,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   }, []);
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
+  const [yearFilter, setYearFilter] = React.useState('');
+  const [exporting, setExporting] = React.useState(false);
   const [page, setPage] = React.useState(1);
 
   const [items, setItems] = React.useState<ISubmission[]>([]);
@@ -147,6 +149,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       dosen: dosenFilter || undefined,
       kodeMK: kodeMKFilter || undefined,
       jurusan: jurusanFilter || undefined,
+      year: yearFilter ? parseInt(yearFilter, 10) : undefined,
     };
     switch (chip) {
       case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus: true, page, pageSize: PAGE_SIZE };
@@ -154,7 +157,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       case 'allactive':  return { ...extra, excludeStatus: true, page, pageSize: PAGE_SIZE };
       case 'published':  return { ...extra, status: 'Published', page, pageSize: PAGE_SIZE };
     }
-  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, me.Email, page]);
 
   React.useEffect(() => {
     let active = true;
@@ -331,6 +334,37 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const PaginationBar: React.FC = () => {
+    const [jumpVal, setJumpVal] = React.useState('');
+    const commitJump = (): void => {
+      const n = parseInt(jumpVal, 10);
+      if (!isNaN(n)) setPage(Math.min(pageCount, Math.max(1, n)));
+      setJumpVal('');
+    };
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: tokens.space.sm }}>
+        <span style={{ fontSize: tokens.font.small, color: tokens.color.text }}>
+          {total} result(s) - page {page} of {pageCount}
+        </span>
+        <div style={{ display: 'flex', gap: tokens.space.sm, alignItems: 'center' }}>
+          <GhostButton type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</GhostButton>
+          <input
+            type="number"
+            min={1}
+            max={pageCount}
+            value={jumpVal}
+            placeholder={String(page)}
+            onChange={(e) => setJumpVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitJump(); }}
+            onBlur={commitJump}
+            style={{ width: 52, padding: '4px 6px', fontSize: tokens.font.small, textAlign: 'center', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, fontFamily: tokens.font.family }}
+          />
+          <GhostButton type="button" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
+        </div>
+      </div>
+    );
+  };
   const colCount = isSupervisor ? 10 : 9;
 
   const jurusanOptions = React.useMemo(
@@ -412,6 +446,28 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             onChange={(v) => { setKodeMKFilter(v); setPage(1); }}
             placeholder="Kode MK"
           />
+          <select
+            value={yearFilter}
+            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
+            style={{ padding: '5px 10px', fontSize: tokens.font.small, border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, fontFamily: tokens.font.family, color: tokens.color.ink, background: '#fff' }}
+          >
+            <option value="">All years</option>
+            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+          <GhostButton
+            type="button"
+            disabled={exporting}
+            onClick={() => {
+              setExporting(true);
+              const f = buildFilter() as Parameters<typeof api.exportExcel>[0];
+              api.exportExcel(f).catch(() => setError('Export failed.')).finally(() => setExporting(false));
+            }}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </GhostButton>
         </div>
       </div>
 
@@ -525,6 +581,8 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
         </div>
       )}
 
+      <PaginationBar />
+
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isSupervisor ? 1300 : 1260 }}>
@@ -593,7 +651,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                           href={s.LinkDamsShare || s.LinkVideoFromLecturer}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(s.LinkDamsShare || s.LinkVideoFromLecturer || '', '_blank', 'noopener,noreferrer'); }}
                           style={{ fontSize: '9px', fontWeight: 400, color: tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap' }}
                         >
                           open video
@@ -754,16 +812,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
         </table>
       </div>
 
-      {/* Pagination */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: tokens.font.small, color: tokens.color.text }}>
-          {total} result(s) - page {page} of {pageCount}
-        </span>
-        <div style={{ display: 'flex', gap: tokens.space.sm }}>
-          <GhostButton type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</GhostButton>
-          <GhostButton type="button" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
-        </div>
-      </div>
+      <PaginationBar />
 
       {/* Intercept modal: user clicked Open with rows selected */}
       {openIntercept && (

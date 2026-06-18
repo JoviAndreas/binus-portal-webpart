@@ -128,6 +128,7 @@ export interface IListFilter {
   assignedTo?: string;
   excludeStatus?: boolean;
   unassigned?: boolean;
+  year?: number;
   page?: number;
   pageSize?: number;
 }
