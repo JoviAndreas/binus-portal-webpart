@@ -96,6 +96,10 @@ export class DamsApi {
     return { ok: true, codeNumber, linkDamsShare, raw: parsed };
   }
 
+  public searchDosens(q: string): Promise<{ KodeDosen: string; Name: string; Email: string; Count: number }[] | null> {
+    return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`);
+  }
+
   public async listSubmissions(filter: IListFilter): Promise<IListResult | null> {
     const qs = new URLSearchParams();
     if (filter.status) qs.set('status', filter.status);

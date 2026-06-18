@@ -664,6 +664,137 @@ export const SearchableSelect: React.FC<{
   );
 };
 
+export const DosenCombo: React.FC<{
+  value?: string;
+  valueMeta?: string;
+  onSearch: (q: string) => Promise<{ KodeDosen: string; Name: string; Email: string }[]>;
+  onChange: (kode: string, meta: string) => void;
+  onClear: () => void;
+  placeholder?: string;
+}> = ({ value, valueMeta, onSearch, onChange, onClear, placeholder = 'Kode Dosen' }) => {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const [results, setResults] = React.useState<{ KodeDosen: string; Name: string; Email: string }[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  const popId = React.useRef(`dams-dc-${Math.random().toString(36).slice(2)}`).current;
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const POP_W = 280;
+
+  React.useEffect(() => {
+    if (!open) { setCoords(null); return; }
+    const update = (): void => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const w = Math.max(r.width, POP_W);
+      const left = Math.min(r.left, window.innerWidth - w - 8);
+      setCoords({ top: r.bottom + 4, left: Math.max(8, left), width: w });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    const handler = (e: MouseEvent): void => {
+      if (ref.current?.contains(e.target as Node)) return;
+      if (document.getElementById(popId)?.contains(e.target as Node)) return;
+      setOpen(false); setSearch(''); setResults([]);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handler);
+    };
+  }, [open, popId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setLoading(true);
+      onSearch(search).then((r) => { setResults(r || []); setLoading(false); }).catch(() => setLoading(false));
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search, open]);
+
+  return (
+    <div ref={ref} style={{ display: 'inline-block' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '3px 9px',
+          border: `1px solid ${value ? tokens.color.blue : tokens.color.line}`,
+          borderRadius: tokens.radius.pill,
+          background: value ? tokens.color.tint : '#fff',
+          cursor: 'pointer',
+          fontSize: '11px',
+          fontFamily: tokens.font.family,
+          color: value ? tokens.color.blueDark : tokens.color.text,
+          fontWeight: value ? 700 : 400,
+          whiteSpace: 'nowrap',
+          maxWidth: 200,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}
+      >
+        {value || placeholder}
+        {value && (
+          <span onClick={(e) => { e.stopPropagation(); onClear(); }} style={{ marginLeft: 4, fontWeight: 700, color: tokens.color.text, lineHeight: 1, flexShrink: 0 }}>×</span>
+        )}
+      </button>
+      {open && coords && (
+        <div
+          id={popId}
+          style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 9999, width: coords.width, maxHeight: 300, overflowY: 'auto', background: '#fff', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.lg }}
+        >
+          <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}`, position: 'sticky', top: 0, background: '#fff' }}>
+            <input
+              className="dams-in"
+              type="text"
+              placeholder="Name, email, or code..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '11px', width: '100%', boxSizing: 'border-box' }}
+              autoFocus
+            />
+          </div>
+          {value && (
+            <button type="button" className="dams-opt" onClick={() => { onClear(); setOpen(false); setSearch(''); setResults([]); }}>
+              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>— Clear —</span>
+            </button>
+          )}
+          {loading && <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>Searching...</div>}
+          {!loading && results.map((d) => (
+            <button
+              key={d.KodeDosen + d.Email}
+              type="button"
+              className={`dams-opt${d.KodeDosen === value ? ' dams-opt-sel' : ''}`}
+              onClick={() => { onChange(d.KodeDosen, `${d.Name} · ${d.Email}`); setOpen(false); setSearch(''); setResults([]); }}
+            >
+              <div>
+                <div style={{ fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>{d.KodeDosen}</div>
+                <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{d.Name} · {d.Email}</div>
+              </div>
+            </button>
+          ))}
+          {!loading && results.length === 0 && search && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>No results.</div>
+          )}
+          {!loading && results.length === 0 && !search && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>Type to search...</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const StatusCombo: React.FC<{
   value?: string;
   onChange: (v: string) => void;

@@ -5,6 +5,7 @@ import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch } from '../../../sh
 import {
   StatusCombo,
   SearchableSelect,
+  DosenCombo,
   PicCombo,
   GhostButton,
   PrimaryButton,
@@ -98,6 +99,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
   const [dosenFilter, setDosenFilter] = React.useState('');
+  const [dosenFilterMeta, setDosenFilterMeta] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
@@ -318,17 +320,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const colCount = isSupervisor ? 10 : 9;
 
-  const dosenOptions = React.useMemo(
-    () => Array.from(new Set(items.map((s) => s.KodeDosen).filter(Boolean) as string[])).sort(),
-    [items]
-  );
-  const dosenMeta = React.useMemo(() => {
-    const m: Record<string, string> = {};
-    items.forEach((s) => {
-      if (s.KodeDosen) m[s.KodeDosen] = [s.Name, s.Email].filter(Boolean).join(' · ');
-    });
-    return m;
-  }, [items]);
   const jurusanOptions = React.useMemo(
     () => Array.from(new Set(items.map((s) => s.Jurusan).filter(Boolean) as string[])).sort(),
     [items]
@@ -388,12 +379,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           </button>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: tokens.space.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-          <SearchableSelect
+          <DosenCombo
             value={dosenFilter}
-            options={dosenOptions}
-            optionMeta={dosenMeta}
-            onChange={(v) => { setDosenFilter(v); setPage(1); }}
-            placeholder="Kode Dosen"
+            valueMeta={dosenFilterMeta}
+            onSearch={(q) => api.searchDosens(q).then((r) => r || [])}
+            onChange={(kode, meta) => { setDosenFilter(kode); setDosenFilterMeta(meta); setPage(1); }}
+            onClear={() => { setDosenFilter(''); setDosenFilterMeta(''); setPage(1); }}
           />
           <SearchableSelect
             value={jurusanFilter}
@@ -593,7 +584,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                           <button
                             type="button"
                             data-inline="true"
-                            onClick={(e) => { e.stopPropagation(); quickFilter('dosen', s.KodeDosen!); }}
+                            onClick={(e) => { e.stopPropagation(); setDosenFilter(s.KodeDosen!); setDosenFilterMeta(`${s.Name || ''} · ${s.Email || ''}`); setPage(1); }}
                             style={{ fontSize: '9px', padding: '0 4px', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, background: '#fff', color: tokens.color.text, cursor: 'pointer', lineHeight: 1.6 }}
                           >
                             filter
