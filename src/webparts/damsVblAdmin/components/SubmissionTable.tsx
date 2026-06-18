@@ -4,8 +4,6 @@ import { DamsApi } from '../../../shared/damsApi';
 import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch } from '../../../shared/damsTypes';
 import {
   StatusPills,
-  BumperSegmented,
-  ToggleSwitch,
   PicCombo,
   GhostButton,
   PrimaryButton,
@@ -151,16 +149,16 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [localOverrides, setLocalOverrides] = React.useState<Record<string, Partial<ISubmission>>>({});
   // Per-row inline error flash
   const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({});
-  // Pending NeedsEdit: rowId -> note being typed
-  const [pendingNeedsEdit, setPendingNeedsEdit] = React.useState<Record<string, string>>({});
+  // Pending Rejected: rowId -> rejection reason being typed
+  const [pendingRejected, setPendingRejected] = React.useState<Record<string, string>>({});
+  // Intercept: open drawer while rows selected
+  const [openIntercept, setOpenIntercept] = React.useState<string | null>(null);
 
   // Bulk selection (supervisor only)
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkPop, setBulkPop] = React.useState<null | 'pic' | 'status' | 'bumper' | 'butuhedit'>(null);
+  const [bulkPop, setBulkPop] = React.useState<null | 'pic' | 'status'>(null);
   const [bulkPicVal, setBulkPicVal] = React.useState('');
   const [bulkStatusVal, setBulkStatusVal] = React.useState('');
-  const [bulkBumperVal, setBulkBumperVal] = React.useState('');
-  const [bulkButuhEdit, setBulkButuhEdit] = React.useState(false);
   const [confirmModal, setConfirmModal] = React.useState<{ message: string; onConfirm: () => void } | null>(null);
   const [bulkLoading, setBulkLoading] = React.useState(false);
 
@@ -186,7 +184,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setError('');
     setLocalOverrides({});
     setRowErrors({});
-    setPendingNeedsEdit({});
+    setPendingRejected({});
     setSelected(new Set());
     api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0]).then((res) => {
       if (!active) return;
@@ -246,23 +244,31 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
 
   const handleStatusChange = (id: string, newStatus: string): void => {
-    if (newStatus === 'NeedsEdit') {
-      setPendingNeedsEdit((prev) => ({ ...prev, [id]: prev[id] ?? '' }));
+    if (newStatus === 'Rejected') {
+      setPendingRejected((prev) => ({ ...prev, [id]: prev[id] ?? '' }));
       return;
     }
-    setPendingNeedsEdit((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    optimisticPatch(id, { Status: newStatus });
+    setPendingRejected((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    const sub = items.find((s) => s.Id === id);
+    const fromLabel = (localOverrides[id]?.Status ?? sub?.Status) || 'Pending';
+    setConfirmModal({
+      message: `Change status from ${fromLabel} to ${newStatus}?`,
+      onConfirm: () => {
+        setConfirmModal(null);
+        optimisticPatch(id, { Status: newStatus });
+      }
+    });
   };
 
-  const confirmNeedsEdit = (id: string): void => {
-    const note = pendingNeedsEdit[id];
+  const confirmRejected = (id: string): void => {
+    const note = pendingRejected[id];
     if (!note || !note.trim()) return;
-    setPendingNeedsEdit((prev) => { const n = { ...prev }; delete n[id]; return n; });
-    optimisticPatch(id, { Status: 'NeedsEdit', ReviewNote: note });
+    setPendingRejected((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    optimisticPatch(id, { Status: 'Rejected', ReviewNote: note });
   };
 
-  const cancelNeedsEdit = (id: string): void => {
-    setPendingNeedsEdit((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  const cancelRejected = (id: string): void => {
+    setPendingRejected((prev) => { const n = { ...prev }; delete n[id]; return n; });
   };
 
   // Selection helpers (supervisor only)
@@ -346,14 +352,27 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const colCount = isSupervisor ? 9 : 8;
+  const colCount = isSupervisor ? 10 : 9;
+
+  const kLabel = (v: string | undefined): string => {
+    const n = parseInt(v || '0', 10);
+    if (n <= 1) return 'W';
+    if (n <= 3) return 'M';
+    return 'E';
+  };
+  const kColor = (v: string | undefined): string => {
+    const n = parseInt(v || '0', 10);
+    if (n <= 1) return tokens.color.danger;
+    if (n <= 3) return tokens.color.orange;
+    return '#16a34a';
+  };
 
   // Display value helpers (merge server state with local override)
   const val = <K extends keyof ISubmission>(s: ISubmission, k: K): ISubmission[K] =>
     (localOverrides[s.Id]?.[k] !== undefined ? localOverrides[s.Id]![k] : s[k]) as ISubmission[K];
 
   const displayStatus = (s: ISubmission): string =>
-    pendingNeedsEdit[s.Id] !== undefined ? 'NeedsEdit' : (val(s, 'Status') as string) || 'Pending';
+    pendingRejected[s.Id] !== undefined ? 'Rejected' : (val(s, 'Status') as string) || 'Pending';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.md }}>
@@ -507,57 +526,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
               </div>
             </BulkPopover>
           </div>
-          {/* Set Bumper */}
-          <div style={{ position: 'relative' }}>
-            <GhostButton
-              type="button"
-              disabled={bulkLoading || selected.size === 0}
-              onClick={() => setBulkPop(bulkPop === 'bumper' ? null : 'bumper')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-            >
-              Set Bumper
-            </GhostButton>
-            <BulkPopover open={bulkPop === 'bumper'} onClose={() => setBulkPop(null)}>
-              <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
-                Set Bumper
-              </div>
-              <BumperSegmented value={bulkBumperVal} onChange={(v) => setBulkBumperVal(v)} />
-              <div style={{ marginTop: tokens.space.sm }}>
-                <PrimaryButton
-                  type="button"
-                  disabled={!bulkBumperVal}
-                  onClick={() => doBulkApply({ StatusAdaBumper: bulkBumperVal }, `Bumper = ${bulkBumperVal}`)}
-                >
-                  Apply
-                </PrimaryButton>
-              </div>
-            </BulkPopover>
-          </div>
-          {/* ButuhEdit toggle */}
-          <div style={{ position: 'relative' }}>
-            <GhostButton
-              type="button"
-              disabled={bulkLoading || selected.size === 0}
-              onClick={() => setBulkPop(bulkPop === 'butuhedit' ? null : 'butuhedit')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-            >
-              Butuh Edit
-            </GhostButton>
-            <BulkPopover open={bulkPop === 'butuhedit'} onClose={() => setBulkPop(null)}>
-              <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
-                Set Butuh Edit
-              </div>
-              <ToggleSwitch value={bulkButuhEdit} onChange={(v) => setBulkButuhEdit(v)} label={bulkButuhEdit ? 'Yes' : 'No'} />
-              <div style={{ marginTop: tokens.space.sm }}>
-                <PrimaryButton
-                  type="button"
-                  onClick={() => doBulkApply({ ButuhEdit: bulkButuhEdit }, `ButuhEdit = ${bulkButuhEdit ? 'Yes' : 'No'}`)}
-                >
-                  Apply
-                </PrimaryButton>
-              </div>
-            </BulkPopover>
-          </div>
           {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
           {selected.size > 0 && (
             <button
@@ -590,9 +558,10 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
               <th style={{ ...th, minWidth: 150 }}>Submitter</th>
               <th style={{ ...th, minWidth: 200 }}>MK / Topik</th>
               <th style={{ ...th, minWidth: 220 }}>Status</th>
-              <th style={{ ...th, minWidth: 160 }}>Bumper</th>
               <th style={{ ...th, minWidth: 130 }}>PIC</th>
-              <th style={{ ...th, width: 80 }}>Butuh Edit</th>
+              <th style={{ ...th, width: 38, textAlign: 'center' }}>KV</th>
+              <th style={{ ...th, width: 38, textAlign: 'center' }}>KA</th>
+              <th style={{ ...th, width: 38, textAlign: 'center' }}>KK</th>
               <th style={{ ...th, width: 60 }} />
             </tr>
           </thead>
@@ -609,7 +578,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             )}
             {!loading && items.map((s) => {
               const rowErr = rowErrors[s.Id];
-              const isPendingNE = pendingNeedsEdit[s.Id] !== undefined;
+              const isPendingRejected = pendingRejected[s.Id] !== undefined;
               return (
                 <React.Fragment key={s.Id}>
                   <tr
@@ -653,13 +622,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                       {rowErr && <div style={{ fontSize: tokens.font.micro, color: tokens.color.danger, marginTop: 3 }}>{rowErr}</div>}
                     </td>
                     <td style={td}>
-                      <BumperSegmented
-                        value={val(s, 'StatusAdaBumper') as string}
-                        onChange={(v) => optimisticPatch(s.Id, { StatusAdaBumper: v })}
-                        disabled={!canEdit}
-                      />
-                    </td>
-                    <td style={td}>
                       <PicCombo
                         value={val(s, 'PicEditing') as string}
                         editors={editors}
@@ -667,51 +629,69 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                         disabled={!isSupervisor}
                       />
                     </td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      <ToggleSwitch
-                        value={!!(val(s, 'ButuhEdit') as boolean)}
-                        onChange={(v) => optimisticPatch(s.Id, { ButuhEdit: v })}
-                        disabled={!canEdit}
-                      />
-                    </td>
+                    {(['KualitasVideo', 'KualitasAudio', 'KualitasKonten'] as (keyof ISubmission)[]).map((k) => {
+                      const raw = val(s, k) as string | undefined;
+                      const hasVal = raw && parseInt(raw, 10) > 0;
+                      return (
+                        <td key={k} style={{ ...td, textAlign: 'center' }}>
+                          {hasVal ? (
+                            <span style={{
+                              display: 'inline-block',
+                              fontWeight: 700,
+                              fontSize: tokens.font.micro,
+                              color: kColor(raw),
+                              letterSpacing: '0.02em'
+                            }}>
+                              {kLabel(raw)}
+                            </span>
+                          ) : (
+                            <span style={{ color: tokens.color.line, fontSize: tokens.font.micro }}>-</span>
+                          )}
+                        </td>
+                      );
+                    })}
                     <td style={td}>
                       <GhostButton
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); onOpenDrawer(s.Id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selected.size > 0) { setOpenIntercept(s.Id); return; }
+                          onOpenDrawer(s.Id);
+                        }}
                         style={{ padding: '3px 10px', fontSize: tokens.font.micro }}
                       >
                         Open
                       </GhostButton>
                     </td>
                   </tr>
-                  {isPendingNE && (
+                  {isPendingRejected && (
                     <tr style={{ background: tokens.color.dangerBg }}>
                       <td style={{ ...td, padding: '8px 12px', borderTop: 'none' }} colSpan={colCount}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.sm }}>
                           <span style={{ fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.danger, whiteSpace: 'nowrap' }}>
-                            Review note required:
+                            Rejection reason required:
                           </span>
                           <input
                             className="dams-in"
                             type="text"
-                            placeholder="Describe what needs fixing..."
-                            value={pendingNeedsEdit[s.Id]}
-                            onChange={(e) => setPendingNeedsEdit((prev) => ({ ...prev, [s.Id]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === 'Enter') confirmNeedsEdit(s.Id); if (e.key === 'Escape') cancelNeedsEdit(s.Id); }}
+                            placeholder="Describe why this is rejected..."
+                            value={pendingRejected[s.Id]}
+                            onChange={(e) => setPendingRejected((prev) => ({ ...prev, [s.Id]: e.target.value }))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') confirmRejected(s.Id); if (e.key === 'Escape') cancelRejected(s.Id); }}
                             style={{ flex: 1, padding: '5px 8px', fontSize: tokens.font.small }}
                             autoFocus
                           />
                           <GhostButton
                             type="button"
-                            onClick={() => confirmNeedsEdit(s.Id)}
-                            disabled={!(pendingNeedsEdit[s.Id] || '').trim()}
+                            onClick={() => confirmRejected(s.Id)}
+                            disabled={!(pendingRejected[s.Id] || '').trim()}
                             style={{ whiteSpace: 'nowrap', fontSize: tokens.font.micro }}
                           >
                             Confirm
                           </GhostButton>
                           <button
                             type="button"
-                            onClick={() => cancelNeedsEdit(s.Id)}
+                            onClick={() => cancelRejected(s.Id)}
                             style={{
                               background: 'transparent',
                               border: 'none',
@@ -745,6 +725,54 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           <GhostButton type="button" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
         </div>
       </div>
+
+      {/* Intercept modal: user clicked Open with rows selected */}
+      {openIntercept && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div onClick={() => setOpenIntercept(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(11,44,68,.35)' }} />
+          <div
+            style={{
+              position: 'relative',
+              background: '#fff',
+              borderRadius: tokens.radius.card,
+              boxShadow: tokens.shadow.lg,
+              padding: '28px 32px',
+              maxWidth: 400,
+              width: '90%',
+              borderTop: `4px solid ${tokens.color.orange}`
+            }}
+          >
+            <p style={{ margin: `0 0 ${tokens.space.sm}`, fontSize: tokens.font.body, fontWeight: 700, color: tokens.color.ink }}>
+              {selected.size} row(s) selected
+            </p>
+            <p style={{ margin: `0 0 ${tokens.space.lg}`, fontSize: tokens.font.small, color: tokens.color.text, lineHeight: 1.5 }}>
+              Opening a single record will not apply changes to your selection. Use the bulk bar above to update all selected rows. Or open this record anyway?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm }}>
+              <GhostButton type="button" onClick={() => setOpenIntercept(null)}>Go back</GhostButton>
+              <PrimaryButton
+                type="button"
+                onClick={() => {
+                  const id = openIntercept;
+                  setOpenIntercept(null);
+                  onOpenDrawer(id);
+                }}
+              >
+                Open anyway
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm modal */}
       {confirmModal && (
