@@ -78,7 +78,8 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
     }
   };
 
-  const doDelete = async (id: number): Promise<void> => {
+  const doDelete = async (id: number, label: string): Promise<void> => {
+    if (!window.confirm(`Delete "${label}"?`)) return;
     setError('');
     try {
       await api.deleteLookup(category, id);
@@ -147,7 +148,7 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
                 </button>
                 <button
                   type="button"
-                  onClick={() => void doDelete(item.id)}
+                  onClick={() => void doDelete(item.id, item.value)}
                   title="Delete"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.danger, fontSize: tokens.font.label, padding: '2px 6px', borderRadius: tokens.radius.sm }}
                 >
