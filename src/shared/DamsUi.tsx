@@ -35,7 +35,7 @@ select.dams-in {
 .dams-btn:disabled { cursor: default; opacity: .55; }
 .dams-btn-pri { color: #fff; background: ${tokens.color.blue}; border: 1px solid ${tokens.color.blue}; padding: 11px 22px; font-size: ${tokens.font.body}; }
 .dams-btn-pri:not(:disabled):hover { background: ${tokens.color.blueDark}; border-color: ${tokens.color.blueDark}; box-shadow: 0 4px 12px rgba(0,142,211,.28); }
-.dams-btn-ghost { color: ${tokens.color.blue}; background: #fff; border: 1px solid ${tokens.color.blue}; padding: 8px 16px; font-size: ${tokens.font.small}; }
+.dams-btn-ghost { color: ${tokens.color.blue}; background: #fff; border: 1px solid ${tokens.color.blue}; padding: 9px 16px; font-size: ${tokens.font.small}; }
 .dams-btn-ghost:not(:disabled):hover { background: ${tokens.color.tint}; }
 .dams-btn-link { color: ${tokens.color.text}; background: transparent; border: none; padding: 4px 6px; font-size: ${tokens.font.small}; font-weight: 600; }
 .dams-btn-link:hover { color: ${tokens.color.danger}; }
@@ -63,6 +63,77 @@ export const DamsStyles: React.FC = () => {
   }, []);
   return null;
 };
+
+export interface IPillTab<T extends string = string> {
+  value: T;
+  label: string;
+}
+
+export function PillTabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  variant = 'segment'
+}: {
+  tabs: IPillTab<T>[];
+  value: T;
+  onChange: (v: T) => void;
+  variant?: 'segment' | 'chip';
+}): React.ReactElement {
+  if (variant === 'chip') {
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {tabs.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => onChange(t.value)}
+            style={{
+              padding: '6px 16px',
+              fontSize: tokens.font.small,
+              fontFamily: tokens.font.family,
+              fontWeight: 700,
+              border: `1.5px solid ${value === t.value ? tokens.color.blue : tokens.color.line}`,
+              borderRadius: tokens.radius.pill,
+              cursor: 'pointer',
+              background: value === t.value ? tokens.color.blue : '#fff',
+              color: value === t.value ? '#fff' : tokens.color.text,
+              transition: 'all .15s'
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', gap: 4, padding: '2px', background: tokens.color.bgSoft, borderRadius: tokens.radius.pill }}>
+      {tabs.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          onClick={() => onChange(t.value)}
+          style={{
+            padding: '5px 14px',
+            fontSize: tokens.font.small,
+            fontFamily: tokens.font.family,
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: tokens.radius.pill,
+            background: value === t.value ? '#fff' : 'transparent',
+            color: value === t.value ? tokens.color.blue : tokens.color.text,
+            cursor: 'pointer',
+            boxShadow: value === t.value ? '0 1px 2px rgba(0,0,0,.1)' : 'none',
+            transition: 'all .12s'
+          }}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // binus.ac.id page chrome: thin blue accent strip, white header band with the
 // BINUS lockup on the left and the page title, closed by an orange rule.
@@ -635,7 +706,7 @@ export const SearchableSelect: React.FC<{
           </div>
           {value && (
             <button type="button" className="dams-opt" onClick={() => { onChange(''); setOpen(false); setSearch(''); }}>
-              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>— Clear —</span>
+              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>Clear</span>
             </button>
           )}
           {filtered.map((o) => (
@@ -766,7 +837,7 @@ export const DosenCombo: React.FC<{
           </div>
           {value && (
             <button type="button" className="dams-opt" onClick={() => { onClear(); setOpen(false); setSearch(''); setResults([]); }}>
-              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>— Clear —</span>
+              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>Clear</span>
             </button>
           )}
           {loading && <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>Searching...</div>}

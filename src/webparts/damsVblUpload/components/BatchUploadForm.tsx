@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { ISubmission } from '../../../shared/damsTypes';
 import { Combobox } from '../../../shared/Combobox';
 import { sanitizeName, parseFilename, buildDescription, buildTags, mapCampus, fuzzyPick } from '../../../shared/sanitize';
-import { Card, CardTitle, Field, TextInput, TextArea, PrimaryButton, GhostButton, MessageBar } from '../../../shared/DamsUi';
+import { Card, CardTitle, Field, TextInput, PrimaryButton, GhostButton, MessageBar } from '../../../shared/DamsUi';
 import { IAutofill } from './DamsVblUpload';
 
 export interface IBatchUploadFormProps {
@@ -60,6 +59,65 @@ const makeRow = (): IRow => {
   };
 };
 
+const DropZone: React.FC<{ file: File | null; onFile: (f: File | null) => void; style?: React.CSSProperties }> = ({ file, onFile, style }) => {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+
+  const handleDrop = (e: React.DragEvent): void => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === 'video/mp4') onFile(f);
+  };
+
+  return (
+    <div
+      style={{
+        ...style,
+        border: `2px dashed ${dragging ? tokens.color.blue : file ? tokens.color.success : tokens.color.line}`,
+        borderRadius: tokens.radius.md,
+        padding: '14px 18px',
+        background: dragging ? tokens.color.tint : file ? tokens.color.successBg : tokens.color.bgSoft,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        transition: 'all .15s'
+      }}
+      onClick={() => inputRef.current?.click()}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragEnter={() => setDragging(true)}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={file ? tokens.color.success : tokens.color.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {file
+          ? <><polyline points="20 6 9 17 4 12" /></>
+          : <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>
+        }
+      </svg>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {file ? (
+          <>
+            <div style={{ fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+            <div style={{ fontSize: tokens.font.label, color: tokens.color.text }}>{(file.size / 1024 / 1024).toFixed(1)} MB</div>
+          </>
+        ) : (
+          <div style={{ fontSize: tokens.font.small, color: tokens.color.text }}>
+            Drop <strong>.mp4</strong> here or <span style={{ color: tokens.color.blue, fontWeight: 700 }}>click to browse</span>
+          </div>
+        )}
+      </div>
+      {file && (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onFile(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: tokens.color.text, fontSize: 16, lineHeight: 1, padding: 4 }}>
+          &#x2715;
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="video/mp4" style={{ display: 'none' }} onChange={(e) => { onFile(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
+    </div>
+  );
+};
+
 export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial, campuses, faculties, departments }) => {
   const [shared, setShared] = React.useState<IShared>({
     Email: initial.email,
@@ -79,29 +137,7 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
   const [lookupQ, setLookupQ] = React.useState('');
   const [looking, setLooking] = React.useState(false);
   const [lookupMsg, setLookupMsg] = React.useState<string>('');
-  const [history, setHistory] = React.useState<ISubmission[]>([]);
-  const [historyLoading, setHistoryLoading] = React.useState(false);
-  const [historyOpen, setHistoryOpen] = React.useState(false);
   const [summary, setSummary] = React.useState<{ shared: IShared; rows: IRow[] } | null>(null);
-
-  const refreshHistory = React.useCallback(async (email: string): Promise<void> => {
-    if (!email) return;
-    setHistoryLoading(true);
-    try {
-      const res = await api.mySubmissions(email);
-      setHistory(Array.isArray(res) ? res : []);
-    } catch {
-      setHistory([]);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [api]);
-
-  React.useEffect(() => {
-    if (shared.Email) {
-      void refreshHistory(shared.Email);
-    }
-  }, [shared.Email, refreshHistory]);
 
   const doLookup = async (): Promise<void> => {
     const q = lookupQ.trim();
@@ -220,7 +256,6 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
       if (doneRows.length > 0) {
         setSummary({ shared: { ...shared }, rows: doneRows });
       }
-      if (shared.Email) void refreshHistory(shared.Email);
     }
   };
 
@@ -230,35 +265,6 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
     setShared((p) => ({ ...p, KodeMatakuliah: '', NamaMatakuliah: '', RumpunIlmu: '', Tags: '' }));
     setError('');
   };
-
-  function statusBg(s: string | undefined): string {
-    switch ((s || '').toLowerCase()) {
-      case 'published':
-      case 'approved':
-        return '#E3F4E3';
-      case 'rejected':
-        return '#FBECEC';
-      case 'inreview':
-      case 'needsedit':
-        return '#FFF4DA';
-      default:
-        return tokens.color.tint;
-    }
-  }
-  function statusText(s: string | undefined): string {
-    switch ((s || '').toLowerCase()) {
-      case 'published':
-      case 'approved':
-        return '#1E7A1E';
-      case 'rejected':
-        return '#A82A1F';
-      case 'inreview':
-      case 'needsedit':
-        return '#8B5A00';
-      default:
-        return tokens.color.blueDark;
-    }
-  }
 
   const statusColor: Record<RowStatus, string> = {
     pending: tokens.color.text,
@@ -273,81 +279,68 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
-      {!initial.found && (
-        <MessageBar kind="info">
-          No binusians record matched <strong>{initial.email}</strong>. Fill the shared lecturer fields manually.
-        </MessageBar>
-      )}
 
       <Card>
-        <CardTitle sub="Applied to every video in this batch.">Shared fields</CardTitle>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'flex-end',
-            gap: tokens.space.sm,
-            padding: tokens.space.md,
-            marginBottom: tokens.space.md,
-            background: tokens.color.bgSoft,
-            border: `1px solid ${tokens.color.line}`,
-            borderRadius: tokens.radius.md
-          }}
-        >
-          <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, color: tokens.color.text, fontWeight: 600 }}>
-              Look up by email or Kode Dosen (override autofill)
-            </label>
-            <div style={{ position: 'relative' }}>
+        <CardTitle sub="Applied to every video in this batch.">Lecturer</CardTitle>
+        {/* Lookup bar */}
+        <div style={{ marginBottom: tokens.space.md }}>
+          <label style={{ display: 'block', fontSize: tokens.font.label, fontWeight: 700, color: tokens.color.text, marginBottom: 6 }}>
+            Search lecturer
+          </label>
+          <div style={{ display: 'flex', gap: 0 }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <svg
+                width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={tokens.color.text}
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+                style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              >
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <TextInput
                 value={lookupQ}
                 onChange={(e) => setLookupQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !looking && lookupQ.trim()) {
-                    e.preventDefault();
-                    void doLookup();
-                  }
-                }}
-                placeholder="e.g. tiurida.anita@binus.ac.id or D5979"
-                style={{ paddingRight: 42 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !looking && lookupQ.trim()) { e.preventDefault(); void doLookup(); } }}
+                placeholder="Email or Kode Dosen, e.g. tiurida.anita@binus.ac.id or D5979"
+                style={{ paddingLeft: 34, borderRight: 'none', borderRadius: `${tokens.radius.control} 0 0 ${tokens.radius.control}` }}
               />
-              {lookupQ.trim() && !looking && (
-                <span
-                  title="Press Enter to lookup"
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 0.3,
-                    color: tokens.color.blue,
-                    background: tokens.color.tint,
-                    border: `1px solid ${tokens.color.tintBorder}`,
-                    borderRadius: 4,
-                    padding: '2px 6px',
-                    pointerEvents: 'none',
-                    fontFamily: tokens.font.family
-                  }}
-                >
-                  ↵ Enter
-                </span>
-              )}
             </div>
+            <button
+              type="button"
+              disabled={looking || !lookupQ.trim()}
+              onClick={() => { void doLookup(); }}
+              style={{
+                padding: '0 18px',
+                fontSize: tokens.font.small,
+                fontFamily: tokens.font.family,
+                fontWeight: 700,
+                border: `1px solid ${tokens.color.blue}`,
+                borderRadius: `0 ${tokens.radius.control} ${tokens.radius.control} 0`,
+                background: tokens.color.blue,
+                color: '#fff',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                opacity: (looking || !lookupQ.trim()) ? 0.5 : 1
+              }}
+            >
+              {looking ? 'Searching...' : 'Search'}
+            </button>
           </div>
-          <GhostButton
-            type="button"
-            disabled={looking || !lookupQ.trim()}
-            onClick={() => { void doLookup(); }}
-          >
-            {looking ? 'Looking...' : 'Apply'}
-          </GhostButton>
           {lookupMsg && (
-            <div style={{ flex: '0 0 100%', fontSize: 12, color: tokens.color.text }}>{lookupMsg}</div>
+            <div style={{
+              marginTop: 6, fontSize: tokens.font.label,
+              color: lookupMsg.startsWith('Loaded') ? tokens.color.success : tokens.color.danger,
+              display: 'flex', alignItems: 'center', gap: 5
+            }}>
+              {lookupMsg.startsWith('Loaded')
+                ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              }
+              {lookupMsg}
+            </div>
           )}
         </div>
-        <div style={{ display: 'grid', gap: tokens.space.md, gridTemplateColumns: 'repeat(12, 1fr)' }}>
+        <div style={{ display: 'grid', gap: tokens.space.md, gridTemplateColumns: 'repeat(12, 1fr)', alignItems: 'end' }}>
           <Field label="Email" style={{ gridColumn: 'span 4 / span 4' }}>
             <TextInput value={shared.Email} onChange={(e) => setS('Email', e.target.value)} placeholder="lecturer@binus.ac.id" />
           </Field>
@@ -356,15 +349,6 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
           </Field>
           <Field label="Kode Dosen" style={{ gridColumn: 'span 3 / span 3' }}>
             <TextInput value={shared.KodeDosen} onChange={(e) => setS('KodeDosen', e.target.value.toUpperCase())} placeholder="D1234" />
-          </Field>
-          <Field label="Kode Matakuliah" style={{ gridColumn: 'span 3 / span 3' }}>
-            <TextInput value={shared.KodeMatakuliah} onChange={(e) => setS('KodeMatakuliah', sanitizeName(e.target.value).toUpperCase())} placeholder="COMP6047" maxLength={16} />
-          </Field>
-          <Field label="Nama Matakuliah" style={{ gridColumn: 'span 5 / span 5' }}>
-            <TextInput value={shared.NamaMatakuliah} onChange={(e) => setS('NamaMatakuliah', sanitizeName(e.target.value))} placeholder="Introduction to C Programming I" />
-          </Field>
-          <Field label="Rumpun Ilmu" style={{ gridColumn: 'span 4 / span 4' }}>
-            <TextInput value={shared.RumpunIlmu} onChange={(e) => setS('RumpunIlmu', e.target.value)} placeholder="Hospitality Knowledge" />
           </Field>
           <Field label="Kampus" style={{ gridColumn: 'span 4 / span 4' }}>
             <Combobox options={campuses} value={shared.Kampus} onChange={(v) => setS('Kampus', v)} placeholder="Pilih kampus" />
@@ -375,95 +359,25 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
           <Field label="Jurusan" style={{ gridColumn: 'span 4 / span 4' }}>
             <Combobox options={departments} value={shared.Jurusan} onChange={(v) => setS('Jurusan', v)} placeholder="Pilih jurusan" allowFree />
           </Field>
-          <Field label="Tags / Keywords" hint={`Auto-append: vbl, video based learning, CAMPUS: ${shared.Kampus}`} style={{ gridColumn: 'span 12 / span 12' }}>
-            <TextArea rows={2} value={shared.Tags} onChange={(e) => setS('Tags', e.target.value)} placeholder="event, hospitality, introduction" />
-          </Field>
         </div>
       </Card>
 
       <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: historyOpen ? tokens.space.sm : 0 }}>
-          <CardTitle sub={shared.Email ? `Recent submissions by ${shared.Email}.` : 'Sign in to view history.'}>Upload history</CardTitle>
-          <button
-            type="button"
-            className="dams-btn-link"
-            onClick={() => setHistoryOpen((v) => !v)}
-          >
-            {historyOpen ? `Hide (${history.length})` : `Show ${history.length} past upload${history.length === 1 ? '' : 's'}`}
-          </button>
+        <CardTitle sub="Shared across all videos in this batch.">Course</CardTitle>
+        <div style={{ display: 'grid', gap: tokens.space.md, gridTemplateColumns: 'repeat(12, 1fr)', alignItems: 'end' }}>
+          <Field label="Kode Matakuliah" style={{ gridColumn: 'span 3 / span 3' }}>
+            <TextInput value={shared.KodeMatakuliah} onChange={(e) => setS('KodeMatakuliah', sanitizeName(e.target.value).toUpperCase())} placeholder="COMP6047" maxLength={16} />
+          </Field>
+          <Field label="Nama Matakuliah" style={{ gridColumn: 'span 5 / span 5' }}>
+            <TextInput value={shared.NamaMatakuliah} onChange={(e) => setS('NamaMatakuliah', sanitizeName(e.target.value))} placeholder="Introduction to C Programming I" />
+          </Field>
+          <Field label="Rumpun Ilmu" style={{ gridColumn: 'span 4 / span 4' }}>
+            <TextInput value={shared.RumpunIlmu} onChange={(e) => setS('RumpunIlmu', e.target.value)} placeholder="Hospitality Knowledge" />
+          </Field>
+          <Field label="Tags / Keywords" hint={`Auto-append: vbl, video based learning, CAMPUS: ${shared.Kampus}`} style={{ gridColumn: 'span 12 / span 12' }}>
+            <TextInput value={shared.Tags} onChange={(e) => setS('Tags', e.target.value)} placeholder="event, hospitality, introduction" />
+          </Field>
         </div>
-        {historyOpen && (
-          <div>
-            {historyLoading && (
-              <p style={{ fontSize: tokens.font.label, color: tokens.color.text, margin: 0 }}>Loading...</p>
-            )}
-            {!historyLoading && history.length === 0 && (
-              <p style={{ fontSize: tokens.font.label, color: tokens.color.text, margin: 0 }}>
-                No past uploads yet. Your submissions will appear here.
-              </p>
-            )}
-            {!historyLoading && history.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
-                {history.slice(0, 50).map((h) => (
-                  <div
-                    key={h.Id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '120px 1fr auto auto',
-                      gap: tokens.space.md,
-                      alignItems: 'center',
-                      padding: '10px 14px',
-                      background: tokens.color.bg,
-                      border: `1px solid ${tokens.color.line}`,
-                      borderRadius: tokens.radius.md
-                    }}
-                  >
-                    <span style={{ fontFamily: 'monospace', fontSize: tokens.font.label, color: tokens.color.blueDark, fontWeight: 700 }}>
-                      {h.CodeNumber || '-'}
-                    </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: tokens.font.body, fontWeight: 600, color: tokens.color.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {(h.KodeMatakuliah || '') + (h.Topik ? ' - ' + h.Topik : '')}
-                      </div>
-                      <div style={{ fontSize: tokens.font.label, color: tokens.color.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {h.FileName || ''}{h.Week ? ` · Week ${h.Week} Sesi ${h.Session}` : ''}
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        background: statusBg(h.Status),
-                        color: statusText(h.Status),
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {h.Status || 'Pending'}
-                    </span>
-                    {h.LinkDamsShare ? (
-                      <a
-                        href={h.LinkDamsShare}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="dams-btn-link"
-                        style={{ textDecoration: 'none' }}
-                      >
-                        Open
-                      </a>
-                    ) : <span />}
-                  </div>
-                ))}
-                {history.length > 50 && (
-                  <p style={{ fontSize: tokens.font.label, color: tokens.color.text, margin: 0 }}>
-                    Showing 50 most recent of {history.length} uploads.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </Card>
 
       <Card>
@@ -529,19 +443,11 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
                 </div>
               ) : (
                 <>
-                  <div style={{ marginBottom: tokens.space.md }}>
-                    <input
-                      type="file"
-                      className="dams-file"
-                      accept="video/mp4"
-                      onChange={(e) => { onRowFile(row.id, e.target.files && e.target.files[0] ? e.target.files[0] : null); e.currentTarget.value = ''; }}
-                    />
-                    {row.file && (
-                      <span style={{ fontSize: tokens.font.label, color: tokens.color.text, marginLeft: tokens.space.sm }}>
-                        {row.file.name} - {(row.file.size / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                    )}
-                  </div>
+                  <DropZone
+                    file={row.file}
+                    onFile={(f) => onRowFile(row.id, f)}
+                    style={{ marginBottom: tokens.space.md }}
+                  />
                   <div style={{ display: 'grid', gap: tokens.space.sm, gridTemplateColumns: 'repeat(12, 1fr)' }}>
                     <Field label="Week" style={{ gridColumn: 'span 2 / span 2' }}>
                       <TextInput inputMode="numeric" pattern="[0-9]*" maxLength={5} value={row.Week} onChange={(e) => setRow(row.id, { Week: onlyDigits(e.target.value) })} placeholder="01" />
@@ -552,7 +458,7 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
                     <Field label="Topik" style={{ gridColumn: 'span 4 / span 4' }}>
                       <TextInput value={row.Topik} onChange={(e) => setRow(row.id, { Topik: sanitizeName(e.target.value) })} placeholder="Pointers and Memory" />
                     </Field>
-                    <Field label="Judul Video" style={{ gridColumn: 'span 3 / span 3' }}>
+                    <Field label="Judul Video" style={{ gridColumn: 'span 4 / span 4' }}>
                       <TextInput maxLength={50} value={row.JudulVideo} onChange={(e) => setRow(row.id, { JudulVideo: sanitizeName(e.target.value) })} placeholder="Short title, max 50 chars" />
                     </Field>
                   </div>

@@ -106,6 +106,8 @@ export class DamsApi {
     if (filter.dosen) qs.set('dosen', filter.dosen);
     if (filter.kodeMK) qs.set('kodeMK', filter.kodeMK);
     if (filter.q) qs.set('q', filter.q);
+    if (filter.jurusan) qs.set('jurusan', filter.jurusan);
+    if (filter.pic) qs.set('pic', filter.pic);
     if (filter.assignedTo) qs.set('assignedTo', filter.assignedTo);
     if (filter.excludeStatus) qs.set('excludeStatus', 'true');
     if (filter.unassigned) qs.set('unassigned', 'true');

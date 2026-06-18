@@ -9,7 +9,8 @@ import {
   PicCombo,
   GhostButton,
   PrimaryButton,
-  MessageBar
+  MessageBar,
+  PillTabs
 } from '../../../shared/DamsUi';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive' | 'published';
@@ -27,6 +28,7 @@ export interface ISubmissionTableProps {
   onOpenDrawer: (id: string) => void;
   me: IMeInfo;
   editors: IEditorInfo[];
+  onTotalChange?: (n: number) => void;
 }
 
 const PAGE_SIZE = 30;
@@ -92,7 +94,7 @@ const ConfirmModal: React.FC<{
   </div>
 );
 
-export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors }) => {
+export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors, onTotalChange }) => {
   const isSupervisor = me.IsSupervisor;
   const canEdit = me.IsAdmin || me.IsEditor;
   const defaultChip: FilterChip = (me.IsEditor || isSupervisor) ? 'myqueue' : 'allactive';
@@ -113,6 +115,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     }).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [picFilter, setPicFilter] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
   const [yearFilter, setYearFilter] = React.useState('');
@@ -121,6 +124,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   const [items, setItems] = React.useState<ISubmission[]>([]);
   const [total, setTotal] = React.useState(0);
+  React.useEffect(() => { onTotalChange?.(total); }, [total, onTotalChange]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
 
@@ -150,6 +154,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       kodeMK: kodeMKFilter || undefined,
       jurusan: jurusanFilter || undefined,
       year: yearFilter ? parseInt(yearFilter, 10) : undefined,
+      pic: picFilter || undefined,
     };
     switch (chip) {
       case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus: true, page, pageSize: PAGE_SIZE };
@@ -157,7 +162,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       case 'allactive':  return { ...extra, excludeStatus: true, page, pageSize: PAGE_SIZE };
       case 'published':  return { ...extra, status: 'Published', page, pageSize: PAGE_SIZE };
     }
-  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, picFilter, me.Email, page]);
 
   React.useEffect(() => {
     let active = true;
@@ -189,6 +194,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const switchChip = (c: FilterChip): void => {
     setChip(c);
     setPage(1);
+    setPicFilter('');
   };
 
   const quickFilter = (field: 'dosen' | 'jurusan' | 'kodeMK', value: string): void => {
@@ -334,30 +340,49 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const PaginationBar: React.FC = () => {
-    const [jumpVal, setJumpVal] = React.useState('');
-    const commitJump = (): void => {
-      const n = parseInt(jumpVal, 10);
-      if (!isNaN(n)) setPage(Math.min(pageCount, Math.max(1, n)));
-      setJumpVal('');
+    const pageBtn = (p: number, label?: string): React.ReactElement => {
+      const active = p === page;
+      return (
+        <button
+          key={label || p}
+          type="button"
+          onClick={() => setPage(p)}
+          style={{
+            minWidth: 32, height: 32, padding: '0 8px',
+            border: active ? 'none' : `1px solid ${tokens.color.line}`,
+            borderRadius: tokens.radius.sm,
+            background: active ? tokens.color.blue : 'transparent',
+            color: active ? '#fff' : tokens.color.ink,
+            fontWeight: active ? 700 : 400,
+            fontSize: tokens.font.small,
+            cursor: active ? 'default' : 'pointer',
+            fontFamily: tokens.font.family,
+          }}
+        >{label || p}</button>
+      );
     };
+    const pages: React.ReactElement[] = [];
+    const WING = 2;
+    const addEllipsis = (key: string): void => {
+      pages.push(<span key={key} style={{ padding: '0 4px', color: tokens.color.text, fontSize: tokens.font.small }}>...</span>);
+    };
+    if (pageCount <= 7) {
+      for (let i = 1; i <= pageCount; i++) pages.push(pageBtn(i));
+    } else {
+      pages.push(pageBtn(1));
+      if (page > WING + 2) addEllipsis('el');
+      for (let i = Math.max(2, page - WING); i <= Math.min(pageCount - 1, page + WING); i++) pages.push(pageBtn(i));
+      if (page < pageCount - WING - 1) addEllipsis('er');
+      pages.push(pageBtn(pageCount));
+    }
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: tokens.space.sm }}>
         <span style={{ fontSize: tokens.font.small, color: tokens.color.text }}>
           {total} result(s) - page {page} of {pageCount}
         </span>
-        <div style={{ display: 'flex', gap: tokens.space.sm, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <GhostButton type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</GhostButton>
-          <input
-            type="number"
-            min={1}
-            max={pageCount}
-            value={jumpVal}
-            placeholder={String(page)}
-            onChange={(e) => setJumpVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') commitJump(); }}
-            onBlur={commitJump}
-            style={{ width: 52, padding: '4px 6px', fontSize: tokens.font.small, textAlign: 'center', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, fontFamily: tokens.font.family }}
-          />
+          {pages}
           <GhostButton type="button" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
         </div>
       </div>
@@ -398,38 +423,29 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.md }}>
 
-      {/* Filter bar */}
+      {/* Filter bar: chips + dropdowns in one row */}
       <div style={{ display: 'flex', gap: tokens.space.sm, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(Object.keys(CHIP_LABELS) as FilterChip[])
-          .filter((c) => canEdit || (c !== 'myqueue' && c !== 'unassigned'))
-          .map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => switchChip(c)}
-            style={{
-              padding: '6px 16px',
-              fontSize: tokens.font.small,
-              fontFamily: tokens.font.family,
-              fontWeight: 700,
-              border: `1.5px solid ${chip === c ? tokens.color.blue : tokens.color.line}`,
-              borderRadius: tokens.radius.pill,
-              cursor: 'pointer',
-              background: chip === c ? tokens.color.blue : '#fff',
-              color: chip === c ? '#fff' : tokens.color.text,
-              transition: 'all .15s'
-            }}
-          >
-            {CHIP_LABELS[c]}
-          </button>
-        ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: tokens.space.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+        <PillTabs
+          tabs={(Object.keys(CHIP_LABELS) as FilterChip[])
+            .filter((c) => canEdit || (c !== 'myqueue' && c !== 'unassigned'))
+            .map((c) => ({ value: c, label: CHIP_LABELS[c] }))}
+          value={chip}
+          onChange={switchChip}
+        />
+        <div style={{ display: 'flex', gap: tokens.space.sm, alignItems: 'center', flexWrap: 'wrap' }}>
           <DosenCombo
             value={dosenFilter}
             valueMeta={dosenFilterMeta}
             onSearch={(q) => api.searchDosens(q).then((r) => r || [])}
             onChange={(kode, meta) => { setDosenFilter(kode); setDosenFilterMeta(meta); setPage(1); }}
             onClear={() => { setDosenFilter(''); setDosenFilterMeta(''); setPage(1); }}
+          />
+          <SearchableSelect
+            value={picFilter}
+            options={editors.map((e) => e.Email).filter(Boolean) as string[]}
+            onChange={(v) => { setPicFilter(v); setPage(1); }}
+            placeholder="PIC"
+            style={{ maxWidth: 180 }}
           />
           <SearchableSelect
             value={jurusanFilter}
@@ -459,8 +475,14 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               const f = buildFilter() as Parameters<typeof api.exportExcel>[0];
               api.exportExcel(f).catch(() => setError('Export failed.')).finally(() => setExporting(false));
             }}
-            style={{ whiteSpace: 'nowrap' }}
+            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+              <path d="M6 13l2.5 4 2.5-4" />
+              <path d="M15 13v4M17 13v4" />
+            </svg>
             {exporting ? 'Exporting...' : 'Export Excel'}
           </GhostButton>
         </div>
@@ -605,9 +627,27 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td style={td} colSpan={colCount}>Loading...</td></tr>
-            )}
+            {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => {
+              const sk = (w: number): React.CSSProperties => ({
+                width: w, height: 13, borderRadius: 4,
+                background: i % 2 === 0 ? tokens.color.line : tokens.color.surfaceAlt,
+                display: 'inline-block'
+              });
+              return (
+                <tr key={i} style={{ background: i % 2 === 0 ? undefined : tokens.color.surfaceAlt }}>
+                  {isSupervisor && <td style={td}><div style={sk(16)} /></td>}
+                  <td style={td}><div style={sk(72)} /></td>
+                  <td style={td}><div style={sk(110)} /></td>
+                  <td style={td}><div style={sk(150)} /></td>
+                  <td style={td}><div style={sk(90)} /></td>
+                  <td style={td}><div style={sk(100)} /></td>
+                  <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
+                  <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
+                  <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
+                  <td style={td}><div style={sk(32)} /></td>
+                </tr>
+              );
+            })}
             {!loading && items.length === 0 && (
               <tr>
                 <td style={{ ...td, color: tokens.color.text, fontStyle: 'italic' }} colSpan={colCount}>

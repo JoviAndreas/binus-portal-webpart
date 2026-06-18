@@ -174,7 +174,7 @@ function linkLabel(field: string, raw: string): string {
 
 const ValueCell: React.FC<{ field: string; value: unknown }> = ({ field, value }) => {
   const str = String(value).trim();
-  if (!str || str === '-' || str === '_' || str === 'N/A' || str.toLowerCase() === 'null') return <span>—</span>;
+  if (!str || str === '-' || str === '_' || str === 'N/A' || str.toLowerCase() === 'null') return <span>-</span>;
   const href = asUrl(str);
   if (href) {
     return (

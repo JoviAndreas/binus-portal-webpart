@@ -320,7 +320,7 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
     if (!hits || groupBy === 'none') return null;
     const map = new Map<string, ISearchHit[]>();
     for (const h of hits) {
-      const k = (h.namaDep || '— Unspecified —').trim();
+      const k = (h.namaDep || '- Unspecified -').trim();
       const a = map.get(k) || [];
       a.push(h);
       map.set(k, a);

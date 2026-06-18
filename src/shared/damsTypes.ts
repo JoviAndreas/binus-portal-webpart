@@ -11,8 +11,10 @@ export type SubmissionStatus =
 export const STATUS_VALUES: SubmissionStatus[] = [
   'Pending',
   'InReview',
+  'NeedsEdit',
   'Approved',
-  'Rejected'
+  'Rejected',
+  'Published'
 ];
 
 export const BUMPER_VALUES: string[] = [
@@ -124,6 +126,8 @@ export interface IListFilter {
   status?: string;
   dosen?: string;
   kodeMK?: string;
+  jurusan?: string;
+  pic?: string;
   q?: string;
   assignedTo?: string;
   excludeStatus?: boolean;
