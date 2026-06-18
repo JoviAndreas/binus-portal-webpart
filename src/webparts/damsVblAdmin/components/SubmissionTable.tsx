@@ -81,12 +81,18 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [fakultasFilter, setFakultasFilter] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
-  const fakultasSeenRef = React.useRef(new Set<string>());
   const jurusanSeenRef = React.useRef(new Set<string>());
   const kodeMKSeenRef = React.useRef(new Set<string>());
   const [fakultasOptions, setFakultasOptions] = React.useState<string[]>([]);
   const [jurusanOptions, setJurusanOptions] = React.useState<string[]>([]);
   const [kodeMKOptions, setKodeMKOptions] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    api.getFaculties().then((list) => {
+      if (list.length) setFakultasOptions(list);
+    }).catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [yearFilter, setYearFilter] = React.useState('');
   const [exporting, setExporting] = React.useState(false);
   const [page, setPage] = React.useState(1);
@@ -153,11 +159,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       } else {
         const loaded = res.items || [];
         loaded.forEach((s) => {
-          if (s.Fakultas) fakultasSeenRef.current.add(s.Fakultas);
           if (s.Jurusan) jurusanSeenRef.current.add(s.Jurusan);
           if (s.KodeMatakuliah) kodeMKSeenRef.current.add(s.KodeMatakuliah);
         });
-        setFakultasOptions(Array.from(fakultasSeenRef.current).sort());
         setJurusanOptions(Array.from(jurusanSeenRef.current).sort());
         setKodeMKOptions(Array.from(kodeMKSeenRef.current).sort());
         setItems(loaded);
@@ -177,7 +181,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setPage(1);
     setPicFilter('');
     setStatusFilter('');
-    fakultasSeenRef.current = new Set();
     jurusanSeenRef.current = new Set();
     kodeMKSeenRef.current = new Set();
     setFakultasOptions([]);
