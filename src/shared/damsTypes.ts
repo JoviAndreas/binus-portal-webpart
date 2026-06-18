@@ -3,18 +3,14 @@
 export type SubmissionStatus =
   | 'Pending'
   | 'InReview'
-  | 'NeedsEdit'
   | 'Approved'
-  | 'Rejected'
-  | 'Published';
+  | 'Rejected';
 
 export const STATUS_VALUES: SubmissionStatus[] = [
   'Pending',
   'InReview',
-  'NeedsEdit',
   'Approved',
-  'Rejected',
-  'Published'
+  'Rejected'
 ];
 
 export const BUMPER_VALUES: string[] = [

@@ -242,7 +242,16 @@ export const GhostButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>
   return <button type="button" {...rest} className={`dams-btn dams-btn-ghost${className ? ' ' + className : ''}`} />;
 };
 
-const STATUS_COLORS: Record<SubmissionStatus, { bg: string; fg: string }> = {
+export const STATUS_LABELS: Record<string, string> = {
+  Pending:   'Pending',
+  InReview:  'In Review',
+  Approved:  'Approved',
+  Rejected:  'Rejected',
+  NeedsEdit: 'Needs Edit',
+  Published: 'Published',
+};
+
+const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   Pending: { bg: '#FDF1E0', fg: '#9A5B0E' },
   InReview: { bg: '#E7F3FB', fg: tokens.color.blueDark },
   NeedsEdit: { bg: tokens.color.dangerBg, fg: tokens.color.danger },
@@ -266,7 +275,7 @@ export const StatusBadge: React.FC<{ status?: string }> = ({ status }) => {
         borderRadius: tokens.radius.pill
       }}
     >
-      {status || 'Pending'}
+      {STATUS_LABELS[status || ''] || status || 'Pending'}
     </span>
   );
 };
@@ -312,7 +321,7 @@ export const StatusPills: React.FC<{
             whiteSpace: 'nowrap'
           }}
         >
-          {s}
+          {STATUS_LABELS[s] || s}
         </button>
       );
     })}
@@ -927,7 +936,7 @@ export const StatusCombo: React.FC<{
           whiteSpace: 'nowrap'
         }}
       >
-        {value || placeholder}
+        {value ? (STATUS_LABELS[value] || value) : placeholder}
       </button>
       {open && coords && (
         <div
@@ -964,7 +973,7 @@ export const StatusCombo: React.FC<{
                   fontSize: '11px',
                   fontWeight: 700
                 }}>
-                  {s}
+                  {STATUS_LABELS[s] || s}
                 </span>
               </button>
             );

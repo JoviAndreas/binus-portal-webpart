@@ -11,7 +11,8 @@ import {
   PrimaryButton,
   MessageBar,
   PillTabs,
-  ConfirmModal
+  ConfirmModal,
+  STATUS_LABELS
 } from '../../../shared/DamsUi';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive';
@@ -465,6 +466,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           <SearchableSelect
             value={statusFilter}
             options={STATUS_VALUES as unknown as string[]}
+            optionLabel={STATUS_LABELS}
             onChange={(v) => { setStatusFilter(v); setPage(1); }}
             placeholder="Status"
             style={{ maxWidth: 130 }}
