@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch } from '../../../shared/damsTypes';
+import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch, STATUS_VALUES } from '../../../shared/damsTypes';
 import {
   StatusCombo,
   SearchableSelect,
@@ -13,13 +13,12 @@ import {
   PillTabs
 } from '../../../shared/DamsUi';
 
-type FilterChip = 'myqueue' | 'unassigned' | 'allactive' | 'published';
+type FilterChip = 'myqueue' | 'unassigned' | 'allactive';
 
 const CHIP_LABELS: Record<FilterChip, string> = {
   myqueue:    'My queue',
   unassigned: 'Unassigned',
   allactive:  'All active',
-  published:  'Published'
 };
 
 export interface ISubmissionTableProps {
@@ -115,9 +114,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     }).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [statusFilter, setStatusFilter] = React.useState('');
   const [picFilter, setPicFilter] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
+  const jurusanSeenRef = React.useRef(new Set<string>());
+  const kodeMKSeenRef = React.useRef(new Set<string>());
+  const [jurusanOptions, setJurusanOptions] = React.useState<string[]>([]);
+  const [kodeMKOptions, setKodeMKOptions] = React.useState<string[]>([]);
   const [yearFilter, setYearFilter] = React.useState('');
   const [exporting, setExporting] = React.useState(false);
   const [page, setPage] = React.useState(1);
@@ -155,18 +159,20 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       jurusan: jurusanFilter || undefined,
       year: yearFilter ? parseInt(yearFilter, 10) : undefined,
       pic: picFilter || undefined,
+      status: statusFilter || undefined,
     };
+    const excludeStatus = !statusFilter;
     switch (chip) {
-      case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus: true, page, pageSize: PAGE_SIZE };
-      case 'unassigned': return { ...extra, unassigned: true, excludeStatus: true, page, pageSize: PAGE_SIZE };
-      case 'allactive':  return { ...extra, excludeStatus: true, page, pageSize: PAGE_SIZE };
-      case 'published':  return { ...extra, status: 'Published', page, pageSize: PAGE_SIZE };
+      case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus, page, pageSize: PAGE_SIZE };
+      case 'unassigned': return { ...extra, unassigned: true, excludeStatus, page, pageSize: PAGE_SIZE };
+      case 'allactive':  return { ...extra, excludeStatus, page, pageSize: PAGE_SIZE };
     }
-  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, picFilter, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, picFilter, statusFilter, me.Email, page]);
 
   React.useEffect(() => {
     let active = true;
     setLoading(true);
+    setItems([]);
     setError('');
     setLocalOverrides({});
     setRowErrors({});
@@ -179,7 +185,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
         setItems([]);
         setTotal(0);
       } else {
-        setItems(res.items || []);
+        const loaded = res.items || [];
+        loaded.forEach((s) => {
+          if (s.Jurusan) jurusanSeenRef.current.add(s.Jurusan);
+          if (s.KodeMatakuliah) kodeMKSeenRef.current.add(s.KodeMatakuliah);
+        });
+        setJurusanOptions(Array.from(jurusanSeenRef.current).sort());
+        setKodeMKOptions(Array.from(kodeMKSeenRef.current).sort());
+        setItems(loaded);
         setTotal(res.total || 0);
       }
       setLoading(false);
@@ -195,6 +208,11 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setChip(c);
     setPage(1);
     setPicFilter('');
+    setStatusFilter('');
+    jurusanSeenRef.current = new Set();
+    kodeMKSeenRef.current = new Set();
+    setJurusanOptions([]);
+    setKodeMKOptions([]);
   };
 
   const quickFilter = (field: 'dosen' | 'jurusan' | 'kodeMK', value: string): void => {
@@ -390,15 +408,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
   const colCount = isSupervisor ? 10 : 9;
 
-  const jurusanOptions = React.useMemo(
-    () => Array.from(new Set(items.map((s) => s.Jurusan).filter(Boolean) as string[])).sort(),
-    [items]
-  );
-  const kodeMKOptions = React.useMemo(
-    () => Array.from(new Set(items.map((s) => s.KodeMatakuliah).filter(Boolean) as string[])).sort(),
-    [items]
-  );
-
   const kLabel = (v: string | undefined): string => {
     const n = parseInt(v || '0', 10);
     if (n <= 1) return 'W';
@@ -467,6 +476,24 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             placeholder="Year"
             style={{ maxWidth: 100 }}
           />
+          <SearchableSelect
+            value={statusFilter}
+            options={STATUS_VALUES as unknown as string[]}
+            onChange={(v) => { setStatusFilter(v); setPage(1); }}
+            placeholder="Status"
+            style={{ maxWidth: 130 }}
+          />
+          {(dosenFilter || picFilter || jurusanFilter || kodeMKFilter || yearFilter || statusFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setDosenFilter(''); setDosenFilterMeta('');
+                setPicFilter(''); setJurusanFilter(''); setKodeMKFilter(''); setYearFilter(''); setStatusFilter('');
+                setPage(1);
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.text, fontSize: tokens.font.small, textDecoration: 'underline', whiteSpace: 'nowrap', padding: 0 }}
+            >Clear filters</button>
+          )}
           <GhostButton
             type="button"
             disabled={exporting}
