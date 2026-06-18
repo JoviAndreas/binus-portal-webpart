@@ -316,6 +316,12 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           if (result.failed.length > 0) setError(`${result.failed.length} row(s) failed.`);
           setLocalOverrides({});
           setSelected(new Set());
+          setBulkPicVal('');
+          setBulkStatusVal('');
+          setBulkRejectNote('');
+          setBulkKV('');
+          setBulkKA('');
+          setBulkKK('');
           // Trigger re-fetch via counter trick: toggle a local reload
           api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0]).then((res) => {
             if (res) { setItems(res.items || []); setTotal(res.total || 0); }
