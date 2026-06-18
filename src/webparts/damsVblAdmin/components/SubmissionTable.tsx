@@ -78,10 +78,13 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   }, []);
   const [statusFilter, setStatusFilter] = React.useState('');
   const [picFilter, setPicFilter] = React.useState('');
+  const [fakultasFilter, setFakultasFilter] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
+  const fakultasSeenRef = React.useRef(new Set<string>());
   const jurusanSeenRef = React.useRef(new Set<string>());
   const kodeMKSeenRef = React.useRef(new Set<string>());
+  const [fakultasOptions, setFakultasOptions] = React.useState<string[]>([]);
   const [jurusanOptions, setJurusanOptions] = React.useState<string[]>([]);
   const [kodeMKOptions, setKodeMKOptions] = React.useState<string[]>([]);
   const [yearFilter, setYearFilter] = React.useState('');
@@ -118,6 +121,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     const extra = {
       dosen: dosenFilter || undefined,
       kodeMK: kodeMKFilter || undefined,
+      fakultas: fakultasFilter || undefined,
       jurusan: jurusanFilter || undefined,
       year: yearFilter ? parseInt(yearFilter, 10) : undefined,
       pic: picFilter || undefined,
@@ -129,7 +133,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       case 'unassigned': return { ...extra, unassigned: true, excludeStatus, page, pageSize: PAGE_SIZE };
       case 'allactive':  return { ...extra, excludeStatus, page, pageSize: PAGE_SIZE };
     }
-  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, yearFilter, picFilter, statusFilter, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, fakultasFilter, jurusanFilter, yearFilter, picFilter, statusFilter, me.Email, page]);
 
   React.useEffect(() => {
     let active = true;
@@ -149,9 +153,11 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       } else {
         const loaded = res.items || [];
         loaded.forEach((s) => {
+          if (s.Fakultas) fakultasSeenRef.current.add(s.Fakultas);
           if (s.Jurusan) jurusanSeenRef.current.add(s.Jurusan);
           if (s.KodeMatakuliah) kodeMKSeenRef.current.add(s.KodeMatakuliah);
         });
+        setFakultasOptions(Array.from(fakultasSeenRef.current).sort());
         setJurusanOptions(Array.from(jurusanSeenRef.current).sort());
         setKodeMKOptions(Array.from(kodeMKSeenRef.current).sort());
         setItems(loaded);
@@ -171,8 +177,10 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setPage(1);
     setPicFilter('');
     setStatusFilter('');
+    fakultasSeenRef.current = new Set();
     jurusanSeenRef.current = new Set();
     kodeMKSeenRef.current = new Set();
+    setFakultasOptions([]);
     setJurusanOptions([]);
     setKodeMKOptions([]);
   };
@@ -419,6 +427,13 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             style={{ maxWidth: 180 }}
           />
           <SearchableSelect
+            value={fakultasFilter}
+            options={fakultasOptions}
+            onChange={(v) => { setFakultasFilter(v); setPage(1); }}
+            placeholder="Fakultas"
+            style={{ maxWidth: 200 }}
+          />
+          <SearchableSelect
             value={jurusanFilter}
             options={jurusanOptions}
             onChange={(v) => { setJurusanFilter(v); setPage(1); }}
@@ -445,12 +460,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             placeholder="Status"
             style={{ maxWidth: 130 }}
           />
-          {(dosenFilter || picFilter || jurusanFilter || kodeMKFilter || yearFilter || statusFilter) && (
+          {(dosenFilter || picFilter || fakultasFilter || jurusanFilter || kodeMKFilter || yearFilter || statusFilter) && (
             <button
               type="button"
               onClick={() => {
                 setDosenFilter(''); setDosenFilterMeta('');
-                setPicFilter(''); setJurusanFilter(''); setKodeMKFilter(''); setYearFilter(''); setStatusFilter('');
+                setPicFilter(''); setFakultasFilter(''); setJurusanFilter(''); setKodeMKFilter(''); setYearFilter(''); setStatusFilter('');
                 setPage(1);
               }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.text, fontSize: tokens.font.small, textDecoration: 'underline', whiteSpace: 'nowrap', padding: 0 }}

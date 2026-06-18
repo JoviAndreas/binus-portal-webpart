@@ -128,6 +128,7 @@ export interface IListFilter {
   status?: string;
   dosen?: string;
   kodeMK?: string;
+  fakultas?: string;
   jurusan?: string;
   pic?: string;
   q?: string;
