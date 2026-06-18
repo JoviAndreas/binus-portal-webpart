@@ -587,7 +587,18 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                       </td>
                     )}
                     <td style={{ ...td, fontSize: tokens.font.micro, fontWeight: 700, color: tokens.color.blueDark }}>
-                      {s.CodeNumber}
+                      <div>{s.CodeNumber}</div>
+                      {(s.LinkDamsShare || s.LinkVideoFromLecturer) && (
+                        <a
+                          href={s.LinkDamsShare || s.LinkVideoFromLecturer}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: '9px', fontWeight: 400, color: tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                        >
+                          open video
+                        </a>
+                      )}
                     </td>
                     <td style={td}>
                       <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{s.Name}</div>
