@@ -1007,6 +1007,45 @@ export const StarRating: React.FC<{
   </div>
 );
 
+export const ConfirmModal: React.FC<{
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ message, onConfirm, onCancel }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 500,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}
+  >
+    <div onClick={onCancel} style={{ position: 'absolute', inset: 0, background: 'rgba(11,44,68,.35)' }} />
+    <div
+      style={{
+        position: 'relative',
+        background: '#fff',
+        borderRadius: tokens.radius.card,
+        boxShadow: tokens.shadow.lg,
+        padding: '28px 32px',
+        maxWidth: 400,
+        width: '90%',
+        borderTop: `4px solid ${tokens.color.orange}`
+      }}
+    >
+      <p style={{ margin: `0 0 ${tokens.space.lg}`, fontSize: tokens.font.body, color: tokens.color.ink, lineHeight: 1.5 }}>
+        {message}
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm }}>
+        <GhostButton type="button" onClick={onCancel}>Cancel</GhostButton>
+        <PrimaryButton type="button" onClick={onConfirm}>Confirm</PrimaryButton>
+      </div>
+    </div>
+  </div>
+);
+
 export const MessageBar: React.FC<{ kind: 'error' | 'success' | 'info'; children: React.ReactNode }> = ({ kind, children }) => {
   const map = {
     error: { bg: tokens.color.dangerBg, fg: tokens.color.danger, bar: tokens.color.danger },

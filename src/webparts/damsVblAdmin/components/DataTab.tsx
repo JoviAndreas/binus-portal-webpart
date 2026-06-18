@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { Card, CardTitle, Field, TextInput, GhostButton, PrimaryButton, MessageBar } from '../../../shared/DamsUi';
+import { Card, CardTitle, Field, TextInput, GhostButton, PrimaryButton, MessageBar, ConfirmModal } from '../../../shared/DamsUi';
 
 type LookupItem = { id: number; value: string; sortOrder: number };
 
@@ -21,6 +21,7 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
   const [editVal, setEditVal] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [confirmDelete, setConfirmDelete] = React.useState<{ id: number; label: string } | null>(null);
 
   const load = (): void => {
     setLoading(true);
@@ -78,8 +79,7 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
     }
   };
 
-  const doDelete = async (id: number, label: string): Promise<void> => {
-    if (!window.confirm(`Delete "${label}"?`)) return;
+  const doDelete = async (id: number): Promise<void> => {
     setError('');
     try {
       await api.deleteLookup(category, id);
@@ -148,7 +148,7 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
                 </button>
                 <button
                   type="button"
-                  onClick={() => void doDelete(item.id, item.value)}
+                  onClick={() => setConfirmDelete({ id: item.id, label: item.value })}
                   title="Delete"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.danger, fontSize: tokens.font.label, padding: '2px 6px', borderRadius: tokens.radius.sm }}
                 >
@@ -172,6 +172,13 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
           {adding ? 'Adding...' : 'Add'}
         </PrimaryButton>
       </div>
+      {confirmDelete && (
+        <ConfirmModal
+          message={`Delete "${confirmDelete.label}"?`}
+          onConfirm={() => { void doDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </Card>
   );
 };
