@@ -38,5 +38,17 @@ build.rig.getTasks = function () {
 };
 
 
+// Disable async chunk splitting to prevent chunk-load errors during deployment
+build.configureWebpack.mergeConfig({
+  additionalConfiguration: (config) => {
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: false,
+      runtimeChunk: false
+    };
+    return config;
+  }
+});
+
 build.initialize(require('gulp'));
 

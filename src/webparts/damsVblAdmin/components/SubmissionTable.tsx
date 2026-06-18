@@ -156,9 +156,11 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   // Bulk selection (supervisor only)
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkPop, setBulkPop] = React.useState<null | 'pic' | 'status'>(null);
+  const [bulkPop, setBulkPop] = React.useState<null | 'pic' | 'status' | 'kv' | 'ka' | 'kk'>(null);
   const [bulkPicVal, setBulkPicVal] = React.useState('');
   const [bulkStatusVal, setBulkStatusVal] = React.useState('');
+  const [bulkRejectNote, setBulkRejectNote] = React.useState('');
+  const [bulkKVal, setBulkKVal] = React.useState('');
   const [confirmModal, setConfirmModal] = React.useState<{ message: string; onConfirm: () => void } | null>(null);
   const [bulkLoading, setBulkLoading] = React.useState(false);
 
@@ -366,6 +368,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     if (n <= 3) return tokens.color.orange;
     return '#16a34a';
   };
+  const kCycle = (v: string | undefined): string => {
+    const n = parseInt(v || '0', 10);
+    if (n === 0) return '1';   // unset → W
+    if (n <= 1) return '3';    // W → M
+    if (n <= 3) return '5';    // M → E
+    return '0';                // E → unset
+  };
+  const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
 
   // Display value helpers (merge server state with local override)
   const val = <K extends keyof ISubmission>(s: ISubmission, k: K): ISubmission[K] =>
@@ -514,18 +524,88 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
               <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
                 Set Status
               </div>
-              <StatusPills value={bulkStatusVal} onChange={(v) => setBulkStatusVal(v)} />
+              <StatusPills value={bulkStatusVal} onChange={(v) => { setBulkStatusVal(v); setBulkRejectNote(''); }} />
+              {bulkStatusVal === 'Rejected' && (
+                <div style={{ marginTop: tokens.space.sm }}>
+                  <input
+                    className="dams-in"
+                    type="text"
+                    placeholder="Rejection reason (required)..."
+                    value={bulkRejectNote}
+                    onChange={(e) => setBulkRejectNote(e.target.value)}
+                    style={{ width: '100%', padding: '5px 8px', fontSize: tokens.font.small, boxSizing: 'border-box' }}
+                    autoFocus
+                  />
+                </div>
+              )}
               <div style={{ marginTop: tokens.space.sm }}>
                 <PrimaryButton
                   type="button"
-                  disabled={!bulkStatusVal}
-                  onClick={() => doBulkApply({ Status: bulkStatusVal }, `Status = ${bulkStatusVal}`)}
+                  disabled={!bulkStatusVal || (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim())}
+                  onClick={() => doBulkApply(
+                    bulkStatusVal === 'Rejected'
+                      ? { Status: bulkStatusVal, ReviewNote: bulkRejectNote }
+                      : { Status: bulkStatusVal },
+                    `Status = ${bulkStatusVal}`
+                  )}
                 >
                   Apply
                 </PrimaryButton>
               </div>
             </BulkPopover>
           </div>
+          {/* Bulk KV/KA/KK */}
+          {(['kv', 'ka', 'kk'] as const).map((key, i) => {
+            const field = (['KualitasVideo', 'KualitasAudio', 'KualitasKonten'] as const)[i];
+            const label = key.toUpperCase();
+            return (
+              <div key={key} style={{ position: 'relative' }}>
+                <GhostButton
+                  type="button"
+                  disabled={bulkLoading || selected.size === 0}
+                  onClick={() => { setBulkPop(bulkPop === key ? null : key); setBulkKVal(''); }}
+                  style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
+                >
+                  {label}
+                </GhostButton>
+                <BulkPopover open={bulkPop === key} onClose={() => setBulkPop(null)}>
+                  <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
+                    Set {label}
+                  </div>
+                  <div style={{ display: 'flex', gap: tokens.space.sm }}>
+                    {[['1', 'W'], ['3', 'M'], ['5', 'E']].map(([val, lbl]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setBulkKVal(bulkKVal === val ? '' : val)}
+                        style={{
+                          padding: '5px 14px',
+                          fontWeight: 700,
+                          fontSize: tokens.font.small,
+                          border: `2px solid ${bulkKVal === val ? kColor(val) : tokens.color.line}`,
+                          borderRadius: tokens.radius.pill,
+                          background: bulkKVal === val ? kColor(val) : '#fff',
+                          color: bulkKVal === val ? '#fff' : kColor(val),
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: tokens.space.sm }}>
+                    <PrimaryButton
+                      type="button"
+                      disabled={!bulkKVal}
+                      onClick={() => doBulkApply({ [field]: bulkKVal } as ISubmissionPatch, `${label} = ${kLabel(bulkKVal)}`)}
+                    >
+                      Apply
+                    </PrimaryButton>
+                  </div>
+                </BulkPopover>
+              </div>
+            );
+          })}
           {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
           {selected.size > 0 && (
             <button
@@ -629,23 +709,35 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                         disabled={!isSupervisor}
                       />
                     </td>
-                    {(['KualitasVideo', 'KualitasAudio', 'KualitasKonten'] as (keyof ISubmission)[]).map((k) => {
+                    {K_FIELDS.map((k) => {
                       const raw = val(s, k) as string | undefined;
                       const hasVal = raw && parseInt(raw, 10) > 0;
                       return (
                         <td key={k} style={{ ...td, textAlign: 'center' }}>
-                          {hasVal ? (
-                            <span style={{
-                              display: 'inline-block',
-                              fontWeight: 700,
-                              fontSize: tokens.font.micro,
-                              color: kColor(raw),
-                              letterSpacing: '0.02em'
-                            }}>
-                              {kLabel(raw)}
-                            </span>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              data-inline="true"
+                              onClick={(e) => { e.stopPropagation(); optimisticPatch(s.Id, { [k]: kCycle(raw) } as ISubmissionPatch); }}
+                              title="Click to cycle W→M→E→unset"
+                              style={{
+                                background: 'none',
+                                border: hasVal ? `1.5px solid ${kColor(raw)}` : `1.5px dashed ${tokens.color.line}`,
+                                borderRadius: tokens.radius.pill,
+                                padding: '1px 7px',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                fontSize: tokens.font.micro,
+                                color: hasVal ? kColor(raw) : tokens.color.line,
+                                lineHeight: 1.6
+                              }}
+                            >
+                              {hasVal ? kLabel(raw) : '-'}
+                            </button>
                           ) : (
-                            <span style={{ color: tokens.color.line, fontSize: tokens.font.micro }}>-</span>
+                            hasVal
+                              ? <span style={{ fontWeight: 700, fontSize: tokens.font.micro, color: kColor(raw) }}>{kLabel(raw)}</span>
+                              : <span style={{ color: tokens.color.line, fontSize: tokens.font.micro }}>-</span>
                           )}
                         </td>
                       );
