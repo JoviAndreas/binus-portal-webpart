@@ -13,8 +13,8 @@
     {
       "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
       "group": { "default": "BINUS Portal" },
-      "title": { "default": "DAMS VBL" },
-      "description": { "default": "Video Based Learning submission portal - upload, review, and manage VBL content." },
+      "title": { "default": "DAMS" },
+      "description": { "default": "Digital Assets Management System - upload, review, and manage digital assets." },
       "officeFabricIconFontName": "ReviewSolid",
       "properties": {
         "apiBaseUrl": "https://uploadvbl.apps.binus.ac.id/api",

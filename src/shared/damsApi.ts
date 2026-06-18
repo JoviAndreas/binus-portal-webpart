@@ -102,6 +102,7 @@ export class DamsApi {
 
   private buildSubmissionQs(filter: IListFilter): URLSearchParams {
     const qs = new URLSearchParams();
+    qs.set('assetType', filter.assetType || 'vbl');
     if (filter.status) qs.set('status', filter.status);
     if (filter.dosen) qs.set('dosen', filter.dosen);
     if (filter.kodeMK) qs.set('kodeMK', filter.kodeMK);

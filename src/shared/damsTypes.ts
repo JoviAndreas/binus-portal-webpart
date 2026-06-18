@@ -50,6 +50,7 @@ export interface IBinusianInfo {
 
 export interface ISubmission {
   Id: string;
+  AssetType?: string;
   CodeNumber?: string;
   AutoNumber?: number;
   SubmissionTime?: string;
@@ -123,6 +124,7 @@ export interface IListResult {
 }
 
 export interface IListFilter {
+  assetType?: string;
   status?: string;
   dosen?: string;
   kodeMK?: string;
