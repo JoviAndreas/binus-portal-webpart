@@ -512,27 +512,43 @@ export const PicCombo: React.FC<{
   );
 };
 
+let _ssId = 0;
 export const SearchableSelect: React.FC<{
   value?: string;
   options: string[];
+  /** Extra searchable text per option value (e.g. name+email for a code) */
+  optionMeta?: Record<string, string>;
+  /** Optional display label per option value */
+  optionLabel?: Record<string, string>;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
-}> = ({ value, options, onChange, placeholder = 'All', disabled, style }) => {
+}> = ({ value, options, optionMeta, optionLabel, onChange, placeholder = 'All', disabled, style }) => {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const ref = React.useRef<HTMLDivElement>(null);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  const popId = React.useRef(`dams-ss-${++_ssId}`).current;
+  const POP_W = 240;
 
-  const filtered = options.filter((o) => !search || o.toLowerCase().includes(search.toLowerCase()));
+  const q = search.toLowerCase();
+  const filtered = options.filter((o) => {
+    if (!q) return true;
+    if (o.toLowerCase().includes(q)) return true;
+    if (optionMeta?.[o]?.toLowerCase().includes(q)) return true;
+    return false;
+  });
 
   React.useEffect(() => {
     if (!open) { setCoords(null); return; }
     const update = (): void => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setCoords({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 180) });
+      if (!r) return;
+      const w = Math.max(r.width, POP_W);
+      const left = Math.min(r.left, window.innerWidth - w - 8);
+      setCoords({ top: r.bottom + 4, left: Math.max(8, left), width: w });
     };
     update();
     window.addEventListener('scroll', update, true);
@@ -540,8 +556,7 @@ export const SearchableSelect: React.FC<{
     const handler = (e: MouseEvent): void => {
       const target = e.target as Node;
       if (ref.current && ref.current.contains(target)) return;
-      const pop = document.getElementById('dams-ss-popover');
-      if (pop && pop.contains(target)) return;
+      if (document.getElementById(popId)?.contains(target)) return;
       setOpen(false); setSearch('');
     };
     document.addEventListener('mousedown', handler);
@@ -550,7 +565,9 @@ export const SearchableSelect: React.FC<{
       window.removeEventListener('resize', update);
       document.removeEventListener('mousedown', handler);
     };
-  }, [open]);
+  }, [open, popId]);
+
+  const displayValue = value ? (optionLabel?.[value] || value) : undefined;
 
   return (
     <div ref={ref} style={{ display: 'inline-block', ...style }}>
@@ -573,16 +590,16 @@ export const SearchableSelect: React.FC<{
           color: value ? tokens.color.blueDark : tokens.color.text,
           fontWeight: value ? 700 : 400,
           whiteSpace: 'nowrap',
-          maxWidth: 160,
+          maxWidth: 180,
           overflow: 'hidden',
           textOverflow: 'ellipsis'
         }}
       >
-        {value || placeholder}
+        {displayValue || placeholder}
         {value && (
           <span
             onClick={(e) => { e.stopPropagation(); onChange(''); }}
-            style={{ marginLeft: 4, fontWeight: 700, color: tokens.color.text, lineHeight: 1 }}
+            style={{ marginLeft: 4, fontWeight: 700, color: tokens.color.text, lineHeight: 1, flexShrink: 0 }}
           >
             ×
           </span>
@@ -590,14 +607,14 @@ export const SearchableSelect: React.FC<{
       </button>
       {open && coords && (
         <div
-          id="dams-ss-popover"
+          id={popId}
           style={{
             position: 'fixed',
             top: coords.top,
             left: coords.left,
             zIndex: 9999,
-            minWidth: coords.width,
-            maxHeight: 260,
+            width: coords.width,
+            maxHeight: 280,
             overflowY: 'auto',
             background: '#fff',
             border: `1px solid ${tokens.color.line}`,
@@ -605,23 +622,19 @@ export const SearchableSelect: React.FC<{
             boxShadow: tokens.shadow.lg
           }}
         >
-          <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}` }}>
+          <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}`, position: 'sticky', top: 0, background: '#fff' }}>
             <input
               className="dams-in"
               type="text"
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ padding: '4px 8px', fontSize: '11px' }}
+              style={{ padding: '4px 8px', fontSize: '11px', width: '100%', boxSizing: 'border-box' }}
               autoFocus
             />
           </div>
           {value && (
-            <button
-              type="button"
-              className="dams-opt"
-              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
-            >
+            <button type="button" className="dams-opt" onClick={() => { onChange(''); setOpen(false); setSearch(''); }}>
               <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>— Clear —</span>
             </button>
           )}
@@ -632,7 +645,14 @@ export const SearchableSelect: React.FC<{
               className={`dams-opt${o === value ? ' dams-opt-sel' : ''}`}
               onClick={() => { onChange(o); setOpen(false); setSearch(''); }}
             >
-              <span style={{ fontSize: tokens.font.small, color: tokens.color.ink }}>{o}</span>
+              <div>
+                <div style={{ fontSize: tokens.font.small, color: tokens.color.ink, fontWeight: o === value ? 700 : 400 }}>
+                  {optionLabel?.[o] || o}
+                </div>
+                {optionMeta?.[o] && (
+                  <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{optionMeta[o]}</div>
+                )}
+              </div>
             </button>
           ))}
           {filtered.length === 0 && (

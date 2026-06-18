@@ -322,6 +322,13 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     () => Array.from(new Set(items.map((s) => s.KodeDosen).filter(Boolean) as string[])).sort(),
     [items]
   );
+  const dosenMeta = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    items.forEach((s) => {
+      if (s.KodeDosen) m[s.KodeDosen] = [s.Name, s.Email].filter(Boolean).join(' · ');
+    });
+    return m;
+  }, [items]);
   const jurusanOptions = React.useMemo(
     () => Array.from(new Set(items.map((s) => s.Jurusan).filter(Boolean) as string[])).sort(),
     [items]
@@ -384,6 +391,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           <SearchableSelect
             value={dosenFilter}
             options={dosenOptions}
+            optionMeta={dosenMeta}
             onChange={(v) => { setDosenFilter(v); setPage(1); }}
             placeholder="Kode Dosen"
           />
@@ -472,11 +480,14 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               </div>
             );
           })}
-          {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
           <PrimaryButton
             type="button"
             disabled={bulkLoading || selected.size === 0 || (!bulkPicVal && !bulkStatusVal && !bulkKV && !bulkKA && !bulkKK)}
             onClick={() => {
+              if (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim()) {
+                setError('Rejection reason required for bulk Rejected.');
+                return;
+              }
               const patch: ISubmissionPatch = {};
               if (bulkPicVal) patch.PicEditing = bulkPicVal;
               if (bulkStatusVal) patch.Status = bulkStatusVal;
@@ -484,10 +495,6 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               if (bulkKV) patch.KualitasVideo = bulkKV;
               if (bulkKA) patch.KualitasAudio = bulkKA;
               if (bulkKK) patch.KualitasKonten = bulkKK;
-              if (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim()) {
-                setError('Rejection reason required for bulk Rejected.');
-                return;
-              }
               const label = [
                 bulkPicVal && `PIC=${bulkPicVal.split('@')[0]}`,
                 bulkStatusVal && `Status=${bulkStatusVal}`,
@@ -497,7 +504,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               ].filter(Boolean).join(', ');
               doBulkApply(patch, label);
             }}
-            style={{ marginLeft: 'auto', flexShrink: 0 }}
+            style={{ flexShrink: 0 }}
           >
             Apply
           </PrimaryButton>
@@ -505,11 +512,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small }}
+              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small, flexShrink: 0 }}
             >
               Clear
             </button>
           )}
+          {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
         </div>
       )}
 
