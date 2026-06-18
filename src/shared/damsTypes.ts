@@ -136,3 +136,13 @@ export interface IListFilter {
   page?: number;
   pageSize?: number;
 }
+
+export interface IAutofill {
+  found: boolean;
+  email: string;
+  name: string;
+  kodeDosen: string;
+  kampus: string;
+  fakultas: string;
+  jurusan: string;
+}

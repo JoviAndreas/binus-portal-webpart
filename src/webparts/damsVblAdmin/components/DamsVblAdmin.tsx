@@ -2,14 +2,13 @@ import * as React from 'react';
 import { AadHttpClient } from '@microsoft/sp-http';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { IMeInfo, IEditorInfo } from '../../../shared/damsTypes';
+import { IMeInfo, IEditorInfo, IAutofill } from '../../../shared/damsTypes';
 import { MessageBar, DamsStyles, PillTabs } from '../../../shared/DamsUi';
 import { mapCampus, fuzzyPick } from '../../../shared/sanitize';
 import { SubmissionTable } from './SubmissionTable';
 import { SubmissionEditor } from './SubmissionEditor';
 import { DataTab } from './DataTab';
-import { BatchUploadForm } from '../../damsVblUpload/components/BatchUploadForm';
-import { IAutofill } from '../../damsVblUpload/components/DamsVblUpload';
+import { BatchUploadForm } from './BatchUploadForm';
 
 export interface IDamsVblAdminProps {
   apiBaseUrl: string;

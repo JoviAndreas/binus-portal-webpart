@@ -4,7 +4,7 @@ import { DamsApi } from '../../../shared/damsApi';
 import { Combobox } from '../../../shared/Combobox';
 import { sanitizeName, parseFilename, buildDescription, buildTags, mapCampus, fuzzyPick } from '../../../shared/sanitize';
 import { Card, CardTitle, Field, TextInput, PrimaryButton, GhostButton, MessageBar } from '../../../shared/DamsUi';
-import { IAutofill } from './DamsVblUpload';
+import { IAutofill } from '../../../shared/damsTypes';
 
 export interface IBatchUploadFormProps {
   api: DamsApi;

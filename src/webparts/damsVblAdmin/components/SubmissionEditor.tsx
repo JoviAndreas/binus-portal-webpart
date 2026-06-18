@@ -16,6 +16,15 @@ export interface ISubmissionEditorProps {
 const starToNum = (v: string | undefined): number => parseInt(v || '0', 10) || 0;
 
 export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, canEdit, onClose, onSaved }) => {
+  const [navOffset, setNavOffset] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const el =
+      document.getElementById('SuiteNavWrapper') ||
+      document.querySelector<HTMLElement>('[data-sp-feature-tag="Suite Navigation"]') ||
+      document.querySelector<HTMLElement>('.ms-compositeHeader');
+    if (el) setNavOffset(el.getBoundingClientRect().bottom);
+  }, []);
+
   const [loading, setLoading] = React.useState(true);
   const [sub, setSub] = React.useState<ISubmission | null>(null);
   const [history, setHistory] = React.useState<IStatusHistory[] | null>(null);
@@ -73,7 +82,7 @@ export const SubmissionEditor: React.FC<ISubmissionEditorProps> = ({ api, id, ca
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
+    <div style={{ position: 'fixed', top: navOffset, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(26,26,26,.4)' }} />
       <div
         className="dams-scope"
