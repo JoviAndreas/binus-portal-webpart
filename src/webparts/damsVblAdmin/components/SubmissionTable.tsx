@@ -96,10 +96,23 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const isSupervisor = me.IsSupervisor;
   const canEdit = me.IsAdmin || me.IsEditor;
   const defaultChip: FilterChip = (me.IsEditor && !isSupervisor) ? 'myqueue' : 'allactive';
+  const isLecturer = !!me.Email?.toLowerCase().endsWith('@binus.ac.id');
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
   const [dosenFilter, setDosenFilter] = React.useState('');
   const [dosenFilterMeta, setDosenFilterMeta] = React.useState('');
+
+  // Auto-filter by own KodeDosen for @binus.ac.id users on mount
+  React.useEffect(() => {
+    if (!isLecturer || !me.Email) return;
+    api.lookupBinusian(me.Email).then((info) => {
+      if (info?.KodeDosen) {
+        setDosenFilter(info.KodeDosen);
+        setDosenFilterMeta(`${info.Name || ''} · ${me.Email}`);
+      }
+    }).catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
