@@ -7,6 +7,7 @@ import { MessageBar, DamsStyles, PillTabs } from '../../../shared/DamsUi';
 import { mapCampus, fuzzyPick } from '../../../shared/sanitize';
 import { SubmissionTable } from './SubmissionTable';
 import { SubmissionEditor } from './SubmissionEditor';
+import { DataTab } from './DataTab';
 import { BatchUploadForm } from '../../damsVblUpload/components/BatchUploadForm';
 import { IAutofill } from '../../damsVblUpload/components/DamsVblUpload';
 
@@ -17,9 +18,9 @@ export interface IDamsVblAdminProps {
   links?: { label: string; url: string }[];
 }
 
-type Tab = 'review' | 'upload';
+type Tab = 'review' | 'upload' | 'data';
 
-const TAB_LABELS: Record<Tab, string> = { review: 'Review', upload: 'Upload' };
+const TAB_LABELS: Record<Tab, string> = { review: 'Review', upload: 'Upload', data: 'Data' };
 
 function roleLabel(me: IMeInfo): { text: string; bg: string; fg: string } {
   if (me.IsAdmin)      return { text: 'Admin',      bg: '#FEE9D1', fg: '#9A4800' };
@@ -137,7 +138,9 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
 
           {/* Pill tabs */}
           <PillTabs<Tab>
-            tabs={(Object.keys(TAB_LABELS) as Tab[]).map((t) => ({ value: t, label: TAB_LABELS[t] }))}
+            tabs={(Object.keys(TAB_LABELS) as Tab[])
+              .filter((t) => t !== 'data' || !!(me && me.IsAdmin))
+              .map((t) => ({ value: t, label: TAB_LABELS[t] }))}
             value={tab}
             onChange={(v) => {
               setTab(v);
@@ -253,6 +256,10 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
               faculties={faculties}
               departments={departments}
             />
+          )}
+
+          {!loading && hasAccess && me && me.IsAdmin && tab === 'data' && (
+            <DataTab api={api} />
           )}
         </div>
       </div>
