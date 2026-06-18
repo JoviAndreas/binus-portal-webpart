@@ -3,13 +3,12 @@ import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
 import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch } from '../../../shared/damsTypes';
 import {
-  StatusPills,
+  StatusCombo,
+  SearchableSelect,
   PicCombo,
   GhostButton,
   PrimaryButton,
-  MessageBar,
-  TextInput,
-  Field
+  MessageBar
 } from '../../../shared/DamsUi';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive' | 'published';
@@ -50,40 +49,6 @@ const td: React.CSSProperties = {
   color: tokens.color.ink,
   borderBottom: `1px solid ${tokens.color.line}`,
   verticalAlign: 'middle'
-};
-
-// Bulk action popover wrapper
-const BulkPopover: React.FC<{ open: boolean; onClose: () => void; children: React.ReactNode }> = ({ open, onClose, children }) => {
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open, onClose]);
-  if (!open) return null;
-  return (
-    <div
-      ref={ref}
-      style={{
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        zIndex: 400,
-        background: '#fff',
-        border: `1px solid ${tokens.color.line}`,
-        borderRadius: tokens.radius.card,
-        boxShadow: tokens.shadow.lg,
-        padding: tokens.space.md,
-        marginTop: 6,
-        minWidth: 240
-      }}
-    >
-      {children}
-    </div>
-  );
 };
 
 // Confirm modal overlay
@@ -132,12 +97,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const defaultChip: FilterChip = (me.IsEditor && !isSupervisor) ? 'myqueue' : 'allactive';
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
-  const [dosen, setDosen] = React.useState('');
-  const [kodeMK, setKodeMK] = React.useState('');
-  const [fakultas, setFakultas] = React.useState('');
-  const [jurusan, setJurusan] = React.useState('');
-  const [q, setQ] = React.useState('');
-  const [appliedExtra, setAppliedExtra] = React.useState({ dosen: '', kodeMK: '', fakultas: '', jurusan: '', q: '' });
+  const [dosenFilter, setDosenFilter] = React.useState('');
+  const [jurusanFilter, setJurusanFilter] = React.useState('');
+  const [kodeMKFilter, setKodeMKFilter] = React.useState('');
   const [page, setPage] = React.useState(1);
 
   const [items, setItems] = React.useState<ISubmission[]>([]);
@@ -156,21 +118,20 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   // Bulk selection (supervisor only)
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkPop, setBulkPop] = React.useState<null | 'pic' | 'status' | 'kv' | 'ka' | 'kk'>(null);
   const [bulkPicVal, setBulkPicVal] = React.useState('');
   const [bulkStatusVal, setBulkStatusVal] = React.useState('');
   const [bulkRejectNote, setBulkRejectNote] = React.useState('');
-  const [bulkKVal, setBulkKVal] = React.useState('');
+  const [bulkKV, setBulkKV] = React.useState('');
+  const [bulkKA, setBulkKA] = React.useState('');
+  const [bulkKK, setBulkKK] = React.useState('');
   const [confirmModal, setConfirmModal] = React.useState<{ message: string; onConfirm: () => void } | null>(null);
   const [bulkLoading, setBulkLoading] = React.useState(false);
 
   const buildFilter = React.useCallback((): Record<string, unknown> => {
     const extra = {
-      dosen: appliedExtra.dosen || undefined,
-      kodeMK: appliedExtra.kodeMK || undefined,
-      fakultas: appliedExtra.fakultas || undefined,
-      jurusan: appliedExtra.jurusan || undefined,
-      q: appliedExtra.q || undefined
+      dosen: dosenFilter || undefined,
+      kodeMK: kodeMKFilter || undefined,
+      jurusan: jurusanFilter || undefined,
     };
     switch (chip) {
       case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus: true, page, pageSize: PAGE_SIZE };
@@ -178,7 +139,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       case 'allactive':  return { ...extra, excludeStatus: true, page, pageSize: PAGE_SIZE };
       case 'published':  return { ...extra, status: 'Published', page, pageSize: PAGE_SIZE };
     }
-  }, [chip, appliedExtra, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, jurusanFilter, me.Email, page]);
 
   React.useEffect(() => {
     let active = true;
@@ -207,14 +168,16 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     return () => { active = false; };
   }, [api, buildFilter, reloadToken]);
 
-  const applyExtra = (): void => {
-    setPage(1);
-    setAppliedExtra({ dosen, kodeMK, fakultas, jurusan, q });
-  };
-
   const switchChip = (c: FilterChip): void => {
     setChip(c);
     setPage(1);
+  };
+
+  const quickFilter = (field: 'dosen' | 'jurusan' | 'kodeMK', value: string): void => {
+    setPage(1);
+    if (field === 'dosen') setDosenFilter(value);
+    if (field === 'jurusan') setJurusanFilter(value);
+    if (field === 'kodeMK') setKodeMKFilter(value);
   };
 
   // Optimistic patch helper
@@ -331,7 +294,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       message: `Apply ${label} to ${ids.length} submission(s)?`,
       onConfirm: () => {
         setConfirmModal(null);
-        setBulkPop(null);
         setBulkLoading(true);
         api.bulkPatch({ ids, patch }).then((result) => {
           setBulkLoading(false);
@@ -356,6 +318,19 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const colCount = isSupervisor ? 10 : 9;
 
+  const dosenOptions = React.useMemo(
+    () => Array.from(new Set(items.map((s) => s.KodeDosen).filter(Boolean) as string[])).sort(),
+    [items]
+  );
+  const jurusanOptions = React.useMemo(
+    () => Array.from(new Set(items.map((s) => s.Jurusan).filter(Boolean) as string[])).sort(),
+    [items]
+  );
+  const kodeMKOptions = React.useMemo(
+    () => Array.from(new Set(items.map((s) => s.KodeMatakuliah).filter(Boolean) as string[])).sort(),
+    [items]
+  );
+
   const kLabel = (v: string | undefined): string => {
     const n = parseInt(v || '0', 10);
     if (n <= 1) return 'W';
@@ -368,14 +343,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     if (n <= 3) return tokens.color.orange;
     return '#16a34a';
   };
-  const kCycle = (v: string | undefined): string => {
-    const n = parseInt(v || '0', 10);
-    if (n === 0) return '1';   // unset → W
-    if (n <= 1) return '3';    // W → M
-    if (n <= 3) return '5';    // M → E
-    return '0';                // E → unset
-  };
-  const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
+const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
 
   // Display value helpers (merge server state with local override)
   const val = <K extends keyof ISubmission>(s: ISubmission, k: K): ISubmission[K] =>
@@ -387,7 +355,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.md }}>
 
-      {/* Filter chips */}
+      {/* Filter bar */}
       <div style={{ display: 'flex', gap: tokens.space.sm, flexWrap: 'wrap', alignItems: 'center' }}>
         {(Object.keys(CHIP_LABELS) as FilterChip[])
           .filter((c) => canEdit || (c !== 'myqueue' && c !== 'unassigned'))
@@ -412,53 +380,26 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             {CHIP_LABELS[c]}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: tokens.space.sm, alignItems: 'flex-end' }}>
-          <Field label="Kode Dosen" style={{ flexShrink: 0 }}>
-            <TextInput
-              value={dosen}
-              onChange={(e) => setDosen(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
-              placeholder="D1234"
-              style={{ width: 90 }}
-            />
-          </Field>
-          <Field label="Kode MK" style={{ flexShrink: 0 }}>
-            <TextInput
-              value={kodeMK}
-              onChange={(e) => setKodeMK(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
-              placeholder="COMP6047"
-              style={{ width: 100 }}
-            />
-          </Field>
-          <Field label="Fakultas" style={{ flexShrink: 0 }}>
-            <TextInput
-              value={fakultas}
-              onChange={(e) => setFakultas(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
-              placeholder="FDCHT, SOCS..."
-              style={{ width: 140 }}
-            />
-          </Field>
-          <Field label="Jurusan" style={{ flexShrink: 0 }}>
-            <TextInput
-              value={jurusan}
-              onChange={(e) => setJurusan(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
-              placeholder="Hotel Management..."
-              style={{ width: 160 }}
-            />
-          </Field>
-          <Field label="Search" style={{ flexShrink: 0 }}>
-            <TextInput
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyExtra(); }}
-              placeholder="Name, topik, code..."
-              style={{ width: 160 }}
-            />
-          </Field>
-          <GhostButton type="button" onClick={applyExtra} style={{ flexShrink: 0 }}>Search</GhostButton>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: tokens.space.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+          <SearchableSelect
+            value={dosenFilter}
+            options={dosenOptions}
+            onChange={(v) => { setDosenFilter(v); setPage(1); }}
+            placeholder="Kode Dosen"
+          />
+          <SearchableSelect
+            value={jurusanFilter}
+            options={jurusanOptions}
+            onChange={(v) => { setJurusanFilter(v); setPage(1); }}
+            placeholder="Jurusan"
+            style={{ maxWidth: 200 }}
+          />
+          <SearchableSelect
+            value={kodeMKFilter}
+            options={kodeMKOptions}
+            onChange={(v) => { setKodeMKFilter(v); setPage(1); }}
+            placeholder="Kode MK"
+          />
         </div>
       </div>
 
@@ -473,7 +414,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             zIndex: 10,
             background: tokens.color.ink,
             borderRadius: tokens.radius.card,
-            padding: '10px 16px',
+            padding: '8px 16px',
             display: 'flex',
             alignItems: 'center',
             gap: tokens.space.sm,
@@ -481,137 +422,90 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
             boxShadow: tokens.shadow.lg
           }}
         >
-          <span style={{ fontSize: tokens.font.small, color: '#fff', fontWeight: 700, marginRight: 4 }}>
+          <span style={{ fontSize: tokens.font.small, color: '#fff', fontWeight: 700, marginRight: 4, whiteSpace: 'nowrap' }}>
             {selected.size > 0 ? `${selected.size} selected` : 'Select rows to bulk edit'}
           </span>
-          {/* Assign PIC */}
-          <div style={{ position: 'relative' }}>
-            <GhostButton
-              type="button"
-              disabled={bulkLoading || selected.size === 0}
-              onClick={() => setBulkPop(bulkPop === 'pic' ? null : 'pic')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-            >
-              Assign PIC
-            </GhostButton>
-            <BulkPopover open={bulkPop === 'pic'} onClose={() => setBulkPop(null)}>
-              <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
-                Assign PIC Editing
-              </div>
-              <PicCombo value={bulkPicVal} editors={editors} onChange={(email) => setBulkPicVal(email)} />
-              <div style={{ marginTop: tokens.space.sm }}>
-                <PrimaryButton
-                  type="button"
-                  disabled={!bulkPicVal}
-                  onClick={() => doBulkApply({ PicEditing: bulkPicVal }, `PIC = ${bulkPicVal.split('@')[0]}`)}
-                >
-                  Apply
-                </PrimaryButton>
-              </div>
-            </BulkPopover>
-          </div>
-          {/* Set Status */}
-          <div style={{ position: 'relative' }}>
-            <GhostButton
-              type="button"
-              disabled={bulkLoading || selected.size === 0}
-              onClick={() => setBulkPop(bulkPop === 'status' ? null : 'status')}
-              style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-            >
-              Set Status
-            </GhostButton>
-            <BulkPopover open={bulkPop === 'status'} onClose={() => setBulkPop(null)}>
-              <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
-                Set Status
-              </div>
-              <StatusPills value={bulkStatusVal} onChange={(v) => { setBulkStatusVal(v); setBulkRejectNote(''); }} />
-              {bulkStatusVal === 'Rejected' && (
-                <div style={{ marginTop: tokens.space.sm }}>
-                  <input
-                    className="dams-in"
-                    type="text"
-                    placeholder="Rejection reason (required)..."
-                    value={bulkRejectNote}
-                    onChange={(e) => setBulkRejectNote(e.target.value)}
-                    style={{ width: '100%', padding: '5px 8px', fontSize: tokens.font.small, boxSizing: 'border-box' }}
-                    autoFocus
-                  />
-                </div>
-              )}
-              <div style={{ marginTop: tokens.space.sm }}>
-                <PrimaryButton
-                  type="button"
-                  disabled={!bulkStatusVal || (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim())}
-                  onClick={() => doBulkApply(
-                    bulkStatusVal === 'Rejected'
-                      ? { Status: bulkStatusVal, ReviewNote: bulkRejectNote }
-                      : { Status: bulkStatusVal },
-                    `Status = ${bulkStatusVal}`
-                  )}
-                >
-                  Apply
-                </PrimaryButton>
-              </div>
-            </BulkPopover>
-          </div>
-          {/* Bulk KV/KA/KK */}
-          {(['kv', 'ka', 'kk'] as const).map((key, i) => {
-            const field = (['KualitasVideo', 'KualitasAudio', 'KualitasKonten'] as const)[i];
-            const label = key.toUpperCase();
+          <PicCombo value={bulkPicVal} editors={editors} onChange={(v) => setBulkPicVal(v)} disabled={selected.size === 0} />
+          <StatusCombo value={bulkStatusVal} onChange={(v) => { setBulkStatusVal(v); setBulkRejectNote(''); }} disabled={selected.size === 0} placeholder="Status..." />
+          {bulkStatusVal === 'Rejected' && (
+            <input
+              className="dams-in"
+              type="text"
+              placeholder="Rejection reason..."
+              value={bulkRejectNote}
+              onChange={(e) => setBulkRejectNote(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: tokens.font.small, minWidth: 180 }}
+            />
+          )}
+          {/* KV KA KK inline */}
+          {(['KV', 'KA', 'KK'] as const).map((lbl, i) => {
+            const setters = [setBulkKV, setBulkKA, setBulkKK];
+            const vals = [bulkKV, bulkKA, bulkKK];
+            const cur = vals[i];
             return (
-              <div key={key} style={{ position: 'relative' }}>
-                <GhostButton
-                  type="button"
-                  disabled={bulkLoading || selected.size === 0}
-                  onClick={() => { setBulkPop(bulkPop === key ? null : key); setBulkKVal(''); }}
-                  style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)', fontSize: tokens.font.micro, opacity: selected.size === 0 ? 0.4 : 1, cursor: selected.size === 0 ? 'not-allowed' : 'pointer' }}
-                >
-                  {label}
-                </GhostButton>
-                <BulkPopover open={bulkPop === key} onClose={() => setBulkPop(null)}>
-                  <div style={{ marginBottom: tokens.space.sm, fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>
-                    Set {label}
-                  </div>
-                  <div style={{ display: 'flex', gap: tokens.space.sm }}>
-                    {[['1', 'W'], ['3', 'M'], ['5', 'E']].map(([val, lbl]) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => setBulkKVal(bulkKVal === val ? '' : val)}
-                        style={{
-                          padding: '5px 14px',
-                          fontWeight: 700,
-                          fontSize: tokens.font.small,
-                          border: `2px solid ${bulkKVal === val ? kColor(val) : tokens.color.line}`,
-                          borderRadius: tokens.radius.pill,
-                          background: bulkKVal === val ? kColor(val) : '#fff',
-                          color: bulkKVal === val ? '#fff' : kColor(val),
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: tokens.space.sm }}>
-                    <PrimaryButton
+              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: tokens.font.micro, color: 'rgba(255,255,255,.6)', marginRight: 2 }}>{lbl}</span>
+                {([['1','W'],['3','M'],['5','E']] as const).map(([v, label]) => {
+                  const active = cur === v;
+                  return (
+                    <button
+                      key={v}
                       type="button"
-                      disabled={!bulkKVal}
-                      onClick={() => doBulkApply({ [field]: bulkKVal } as ISubmissionPatch, `${label} = ${kLabel(bulkKVal)}`)}
+                      disabled={selected.size === 0}
+                      onClick={() => setters[i](active ? '' : v)}
+                      style={{
+                        padding: '1px 6px',
+                        fontWeight: 700,
+                        fontSize: tokens.font.micro,
+                        border: `1.5px solid ${active ? kColor(v) : 'rgba(255,255,255,.3)'}`,
+                        borderRadius: tokens.radius.pill,
+                        background: active ? kColor(v) : 'transparent',
+                        color: active ? '#fff' : 'rgba(255,255,255,.7)',
+                        cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
+                        opacity: selected.size === 0 ? 0.4 : 1
+                      }}
                     >
-                      Apply
-                    </PrimaryButton>
-                  </div>
-                </BulkPopover>
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
           {bulkLoading && <span style={{ color: '#fff', fontSize: tokens.font.micro }}>Applying...</span>}
+          <PrimaryButton
+            type="button"
+            disabled={bulkLoading || selected.size === 0 || (!bulkPicVal && !bulkStatusVal && !bulkKV && !bulkKA && !bulkKK)}
+            onClick={() => {
+              const patch: ISubmissionPatch = {};
+              if (bulkPicVal) patch.PicEditing = bulkPicVal;
+              if (bulkStatusVal) patch.Status = bulkStatusVal;
+              if (bulkStatusVal === 'Rejected' && bulkRejectNote) patch.ReviewNote = bulkRejectNote;
+              if (bulkKV) patch.KualitasVideo = bulkKV;
+              if (bulkKA) patch.KualitasAudio = bulkKA;
+              if (bulkKK) patch.KualitasKonten = bulkKK;
+              if (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim()) {
+                setError('Rejection reason required for bulk Rejected.');
+                return;
+              }
+              const label = [
+                bulkPicVal && `PIC=${bulkPicVal.split('@')[0]}`,
+                bulkStatusVal && `Status=${bulkStatusVal}`,
+                bulkKV && `KV=${kLabel(bulkKV)}`,
+                bulkKA && `KA=${kLabel(bulkKA)}`,
+                bulkKK && `KK=${kLabel(bulkKK)}`
+              ].filter(Boolean).join(', ');
+              doBulkApply(patch, label);
+            }}
+            style={{ marginLeft: 'auto', flexShrink: 0 }}
+          >
+            Apply
+          </PrimaryButton>
           {selected.size > 0 && (
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small }}
+              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontSize: tokens.font.small }}
             >
               Clear
             </button>
@@ -685,16 +579,40 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                     </td>
                     <td style={td}>
                       <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{s.Name}</div>
-                      <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{s.KodeDosen}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{s.KodeDosen}</span>
+                        {s.KodeDosen && (
+                          <button
+                            type="button"
+                            data-inline="true"
+                            onClick={(e) => { e.stopPropagation(); quickFilter('dosen', s.KodeDosen!); }}
+                            style={{ fontSize: '9px', padding: '0 4px', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, background: '#fff', color: tokens.color.text, cursor: 'pointer', lineHeight: 1.6 }}
+                          >
+                            filter
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td style={td}>
-                      <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{s.KodeMatakuliah}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{s.KodeMatakuliah}</span>
+                        {s.KodeMatakuliah && (
+                          <button
+                            type="button"
+                            data-inline="true"
+                            onClick={(e) => { e.stopPropagation(); quickFilter('kodeMK', s.KodeMatakuliah!); }}
+                            style={{ fontSize: '9px', padding: '0 4px', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, background: '#fff', color: tokens.color.text, cursor: 'pointer', lineHeight: 1.6 }}
+                          >
+                            filter
+                          </button>
+                        )}
+                      </div>
                       <div style={{ fontSize: tokens.font.micro, color: tokens.color.text, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {s.Topik}
                       </div>
                     </td>
                     <td style={td}>
-                      <StatusPills
+                      <StatusCombo
                         value={displayStatus(s)}
                         onChange={(newStatus) => handleStatusChange(s.Id, newStatus)}
                         disabled={!canEdit}

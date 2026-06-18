@@ -512,6 +512,247 @@ export const PicCombo: React.FC<{
   );
 };
 
+export const SearchableSelect: React.FC<{
+  value?: string;
+  options: string[];
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  style?: React.CSSProperties;
+}> = ({ value, options, onChange, placeholder = 'All', disabled, style }) => {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const ref = React.useRef<HTMLDivElement>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+
+  const filtered = options.filter((o) => !search || o.toLowerCase().includes(search.toLowerCase()));
+
+  React.useEffect(() => {
+    if (!open) { setCoords(null); return; }
+    const update = (): void => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setCoords({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 180) });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    const handler = (e: MouseEvent): void => {
+      const target = e.target as Node;
+      if (ref.current && ref.current.contains(target)) return;
+      const pop = document.getElementById('dams-ss-popover');
+      if (pop && pop.contains(target)) return;
+      setOpen(false); setSearch('');
+    };
+    document.addEventListener('mousedown', handler);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handler);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ display: 'inline-block', ...style }}>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '3px 9px',
+          border: `1px solid ${value ? tokens.color.blue : tokens.color.line}`,
+          borderRadius: tokens.radius.pill,
+          background: value ? tokens.color.tint : '#fff',
+          cursor: disabled ? 'default' : 'pointer',
+          fontSize: '11px',
+          fontFamily: tokens.font.family,
+          color: value ? tokens.color.blueDark : tokens.color.text,
+          fontWeight: value ? 700 : 400,
+          whiteSpace: 'nowrap',
+          maxWidth: 160,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}
+      >
+        {value || placeholder}
+        {value && (
+          <span
+            onClick={(e) => { e.stopPropagation(); onChange(''); }}
+            style={{ marginLeft: 4, fontWeight: 700, color: tokens.color.text, lineHeight: 1 }}
+          >
+            ×
+          </span>
+        )}
+      </button>
+      {open && coords && (
+        <div
+          id="dams-ss-popover"
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            minWidth: coords.width,
+            maxHeight: 260,
+            overflowY: 'auto',
+            background: '#fff',
+            border: `1px solid ${tokens.color.line}`,
+            borderRadius: tokens.radius.card,
+            boxShadow: tokens.shadow.lg
+          }}
+        >
+          <div style={{ padding: '7px 8px', borderBottom: `1px solid ${tokens.color.line}` }}>
+            <input
+              className="dams-in"
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '11px' }}
+              autoFocus
+            />
+          </div>
+          {value && (
+            <button
+              type="button"
+              className="dams-opt"
+              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
+            >
+              <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>— Clear —</span>
+            </button>
+          )}
+          {filtered.map((o) => (
+            <button
+              key={o}
+              type="button"
+              className={`dams-opt${o === value ? ' dams-opt-sel' : ''}`}
+              onClick={() => { onChange(o); setOpen(false); setSearch(''); }}
+            >
+              <span style={{ fontSize: tokens.font.small, color: tokens.color.ink }}>{o}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>No results.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const StatusCombo: React.FC<{
+  value?: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}> = ({ value, onChange, disabled, placeholder = 'Status...' }) => {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
+
+  const c = value ? (STATUS_PILL_COLORS[value as SubmissionStatus] || { bg: tokens.color.bgSoft, fg: tokens.color.text, border: '#aaa' }) : null;
+
+  React.useEffect(() => {
+    if (!open) { setCoords(null); return; }
+    const update = (): void => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setCoords({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 160) });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    const handler = (e: MouseEvent): void => {
+      const target = e.target as Node;
+      if (ref.current && ref.current.contains(target)) return;
+      const pop = document.getElementById('dams-sc-popover');
+      if (pop && pop.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('mousedown', handler);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ display: 'inline-block' }}>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '3px 10px',
+          border: `1.5px solid ${c ? c.border : tokens.color.line}`,
+          borderRadius: tokens.radius.pill,
+          background: c ? c.bg : '#fff',
+          cursor: disabled ? 'default' : 'pointer',
+          fontSize: '11px',
+          fontFamily: tokens.font.family,
+          fontWeight: 700,
+          color: c ? c.fg : tokens.color.text,
+          opacity: disabled ? 0.55 : 1,
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {value || placeholder}
+      </button>
+      {open && coords && (
+        <div
+          id="dams-sc-popover"
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            minWidth: coords.width,
+            background: '#fff',
+            border: `1px solid ${tokens.color.line}`,
+            borderRadius: tokens.radius.card,
+            boxShadow: tokens.shadow.lg,
+            padding: '6px 0'
+          }}
+        >
+          {STATUS_VALUES.map((s) => {
+            const sc = STATUS_PILL_COLORS[s] || { bg: tokens.color.bgSoft, fg: tokens.color.text, border: '#aaa' };
+            return (
+              <button
+                key={s}
+                type="button"
+                className={`dams-opt${s === value ? ' dams-opt-sel' : ''}`}
+                onClick={() => { onChange(s); setOpen(false); }}
+              >
+                <span style={{
+                  display: 'inline-block',
+                  padding: '2px 8px',
+                  borderRadius: tokens.radius.pill,
+                  background: sc.bg,
+                  color: sc.fg,
+                  border: `1px solid ${sc.border}`,
+                  fontSize: '11px',
+                  fontWeight: 700
+                }}>
+                  {s}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const StarRating: React.FC<{
   value?: number;
   max?: number;
