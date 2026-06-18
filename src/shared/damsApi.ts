@@ -199,8 +199,10 @@ export class DamsApi {
     return (await r.json()) as BulkPatchResult;
   }
 
-  public getLookup(category: string): Promise<{ id: number; value: string; sortOrder: number }[] | null> {
-    return this.getJson(`/Lookup/${encodeURIComponent(category)}`);
+  public async getLookup(category: string): Promise<{ id: number; value: string; sortOrder: number }[] | null> {
+    const res = await this.getJson<{ Id: number; Value: string; SortOrder: number }[]>(`/Lookup/${encodeURIComponent(category)}`);
+    if (!res) return null;
+    return res.map((r) => ({ id: r.Id, value: r.Value, sortOrder: r.SortOrder }));
   }
 
   public async addLookup(category: string, value: string): Promise<{ id: number; value: string } | null> {
@@ -214,7 +216,8 @@ export class DamsApi {
       const err = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(err.error || `Add failed: ${r.status}`);
     }
-    return r.json() as Promise<{ id: number; value: string }>;
+    const added = await r.json() as { Id: number; Value: string };
+    return { id: added.Id, value: added.Value };
   }
 
   public async renameLookup(category: string, id: number, value: string): Promise<void> {
