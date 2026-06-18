@@ -711,31 +711,37 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
                     </td>
                     {K_FIELDS.map((k) => {
                       const raw = val(s, k) as string | undefined;
-                      const hasVal = raw && parseInt(raw, 10) > 0;
+                      const cur = parseInt(raw || '0', 10);
                       return (
                         <td key={k} style={{ ...td, textAlign: 'center' }}>
                           {canEdit ? (
-                            <button
-                              type="button"
-                              data-inline="true"
-                              onClick={(e) => { e.stopPropagation(); optimisticPatch(s.Id, { [k]: kCycle(raw) } as ISubmissionPatch); }}
-                              title="Click to cycle W→M→E→unset"
-                              style={{
-                                background: 'none',
-                                border: hasVal ? `1.5px solid ${kColor(raw)}` : `1.5px dashed ${tokens.color.line}`,
-                                borderRadius: tokens.radius.pill,
-                                padding: '1px 7px',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                                fontSize: tokens.font.micro,
-                                color: hasVal ? kColor(raw) : tokens.color.line,
-                                lineHeight: 1.6
-                              }}
-                            >
-                              {hasVal ? kLabel(raw) : '-'}
-                            </button>
+                            <div data-inline="true" style={{ display: 'flex', gap: 2 }}>
+                              {([['1','W'],['3','M'],['5','E']] as const).map(([v, lbl]) => {
+                                const active = cur === parseInt(v, 10);
+                                return (
+                                  <button
+                                    key={v}
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); optimisticPatch(s.Id, { [k]: active ? '0' : v } as ISubmissionPatch); }}
+                                    style={{
+                                      padding: '1px 5px',
+                                      fontWeight: 700,
+                                      fontSize: tokens.font.micro,
+                                      border: `1.5px solid ${active ? kColor(v) : tokens.color.line}`,
+                                      borderRadius: tokens.radius.pill,
+                                      background: active ? kColor(v) : '#fff',
+                                      color: active ? '#fff' : tokens.color.text,
+                                      cursor: 'pointer',
+                                      lineHeight: 1.5
+                                    }}
+                                  >
+                                    {lbl}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           ) : (
-                            hasVal
+                            cur > 0
                               ? <span style={{ fontWeight: 700, fontSize: tokens.font.micro, color: kColor(raw) }}>{kLabel(raw)}</span>
                               : <span style={{ color: tokens.color.line, fontSize: tokens.font.micro }}>-</span>
                           )}
