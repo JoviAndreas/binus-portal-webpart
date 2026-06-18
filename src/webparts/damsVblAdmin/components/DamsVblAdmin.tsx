@@ -53,46 +53,30 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
   const [tab, setTab] = React.useState<Tab>(getInitialTab);
   const [total, setTotal] = React.useState(0);
 
+  const [lookupLoaded, setLookupLoaded] = React.useState(false);
+
+  // Load me + editors on mount (needed for all tabs)
   React.useEffect(() => {
     let active = true;
     setLoading(true);
     (async () => {
       try {
-        const [m, edList, camp, fac, dep] = await Promise.all([
-          api.me(), api.listEditors(), api.getCampuses(), api.getFaculties(), api.getDepartments()
-        ]);
+        const [m, edList] = await Promise.all([api.me(), api.listEditors()]);
         if (!active) return;
         setMe(m);
         setEditors(edList || []);
-        setCampuses(camp);
-        setFaculties(fac);
-        setDepartments(dep);
 
         const isPrivileged = !!(m && (m.IsAdmin || m.IsEditor || m.IsSupervisor));
         const qsTab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
         if (!qsTab) setTab(isPrivileged ? 'review' : 'upload');
 
-        let af: IAutofill = {
+        // Seed autofill with just email/name; campus/faculty/jurusan filled later
+        setAutofill({
           found: false,
           email: (m && m.Email) || '',
           name: (m && m.Name) || '',
           kodeDosen: '', kampus: 'Jakarta', fakultas: '', jurusan: ''
-        };
-        if (m && m.Email) {
-          const b = await api.lookupBinusian(m.Email);
-          if (b && active) {
-            af = {
-              found: true,
-              email: b.Email || m.Email,
-              name: b.Name || m.Name || '',
-              kodeDosen: b.KodeDosen || '',
-              kampus: mapCampus(b.Campus),
-              fakultas: fuzzyPick(b.AcadGroupDesc || '', fac) || '',
-              jurusan: fuzzyPick(b.AcadOrgDesc || '', dep) || ''
-            };
-          }
-        }
-        if (active) setAutofill(af);
+        });
       } catch {
         if (active) setError(true);
       } finally {
@@ -101,6 +85,46 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
     })().catch(() => { /* handled */ });
     return () => { active = false; };
   }, [api]);
+
+  // Load campus/faculty/jurusan only when upload tab is first shown
+  React.useEffect(() => {
+    if (tab !== 'upload' || lookupLoaded) return;
+    let active = true;
+    (async () => {
+      try {
+        const [camp, fac, dep] = await Promise.all([
+          api.getCampuses(), api.getFaculties(), api.getDepartments()
+        ]);
+        if (!active) return;
+        setCampuses(camp);
+        setFaculties(fac);
+        setDepartments(dep);
+        setLookupLoaded(true);
+
+        // Enrich autofill with binusian lookup now that we have fac/dep
+        setAutofill((prev) => {
+          if (!prev || !prev.email) return prev;
+          // trigger async enrichment
+          api.lookupBinusian(prev.email).then((b) => {
+            if (!b || !active) return;
+            setAutofill({
+              found: true,
+              email: b.Email || prev.email,
+              name: b.Name || prev.name || '',
+              kodeDosen: b.KodeDosen || '',
+              kampus: mapCampus(b.Campus),
+              fakultas: fuzzyPick(b.AcadGroupDesc || '', fac) || '',
+              jurusan: fuzzyPick(b.AcadOrgDesc || '', dep) || ''
+            });
+          }).catch(() => { /* ignore */ });
+          return prev;
+        });
+      } catch {
+        /* non-fatal: dropdowns fall back to defaults */
+      }
+    })().catch(() => { /* handled */ });
+    return () => { active = false; };
+  }, [tab, lookupLoaded, api]);
 
   const hasAccess = !!me;
   const role = me ? roleLabel(me) : null;
