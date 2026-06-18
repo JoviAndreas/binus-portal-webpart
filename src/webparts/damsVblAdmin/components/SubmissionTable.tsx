@@ -444,16 +444,13 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
             onChange={(v) => { setKodeMKFilter(v); setPage(1); }}
             placeholder="Kode MK"
           />
-          <select
+          <SearchableSelect
             value={yearFilter}
-            onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-            style={{ padding: '5px 10px', fontSize: tokens.font.small, border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.pill, fontFamily: tokens.font.family, color: tokens.color.ink, background: '#fff' }}
-          >
-            <option value="">All years</option>
-            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-              <option key={y} value={String(y)}>{y}</option>
-            ))}
-          </select>
+            options={Array.from({ length: 6 }, (_, i) => String(new Date().getFullYear() - i))}
+            onChange={(v) => { setYearFilter(v); setPage(1); }}
+            placeholder="Year"
+            style={{ maxWidth: 100 }}
+          />
           <GhostButton
             type="button"
             disabled={exporting}
