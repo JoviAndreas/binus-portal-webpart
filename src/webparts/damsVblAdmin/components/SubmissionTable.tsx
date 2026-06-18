@@ -317,8 +317,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           setBulkLoading(false);
           if (!result) { setError('Bulk update failed.'); return; }
           if (result.failed.length > 0) setError(`${result.failed.length} row(s) failed.`);
-          // Reload
-          setPage(1);
           setLocalOverrides({});
           setSelected(new Set());
           // Trigger re-fetch via counter trick: toggle a local reload
