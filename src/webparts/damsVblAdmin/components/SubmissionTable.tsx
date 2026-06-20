@@ -386,7 +386,13 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       </div>
     );
   };
-  const colCount = isSupervisor ? 10 : 9;
+  const colCount = isSupervisor ? 11 : 10;
+
+  const fmtDate = (iso?: string): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   const kLabel = (v: string | undefined): string => {
     const n = parseInt(v || '0', 10);
@@ -631,10 +637,11 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                 </th>
               )}
               <th style={{ ...th, width: 110 }}>Code</th>
-              <th style={{ ...th, minWidth: 150 }}>Submitter</th>
+              <th style={{ ...th, minWidth: 160 }}>Submitter</th>
               <th style={{ ...th, minWidth: 200 }}>MK / Topik</th>
-              <th style={{ ...th, minWidth: 220 }}>Status</th>
-              <th style={{ ...th, minWidth: 130 }}>PIC</th>
+              <th style={{ ...th, width: 90 }}>Week / Sesi</th>
+              <th style={{ ...th, minWidth: 140 }}>Status</th>
+              <th style={{ ...th, minWidth: 110 }}>PIC</th>
               <th style={{ ...th, width: 38, textAlign: 'center' }}>KV</th>
               <th style={{ ...th, width: 38, textAlign: 'center' }}>KA</th>
               <th style={{ ...th, width: 38, textAlign: 'center' }}>KK</th>
@@ -654,8 +661,9 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                   <td style={td}><div style={sk(72)} /></td>
                   <td style={td}><div style={sk(110)} /></td>
                   <td style={td}><div style={sk(150)} /></td>
+                  <td style={td}><div style={sk(60)} /></td>
                   <td style={td}><div style={sk(90)} /></td>
-                  <td style={td}><div style={sk(100)} /></td>
+                  <td style={td}><div style={sk(80)} /></td>
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
@@ -710,7 +718,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                     </td>
                     <td style={td}>
                       <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{s.Name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{s.KodeDosen}</span>
                         {s.KodeDosen && (
                           <button
@@ -721,6 +729,9 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                           >
                             filter
                           </button>
+                        )}
+                        {s.SubmissionTime && (
+                          <span style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{fmtDate(s.SubmissionTime)}</span>
                         )}
                       </div>
                     </td>
@@ -741,6 +752,10 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                       <div style={{ fontSize: tokens.font.micro, color: tokens.color.text, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {s.Topik}
                       </div>
+                    </td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                      {s.Week && <div style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>W{s.Week}</div>}
+                      {s.Session && <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>S{s.Session}</div>}
                     </td>
                     <td style={td}>
                       <StatusCombo
