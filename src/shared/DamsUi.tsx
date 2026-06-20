@@ -747,7 +747,7 @@ export const SearchableSelect: React.FC<{
 export const DosenCombo: React.FC<{
   value?: string;
   valueMeta?: string;
-  onSearch: (q: string) => Promise<{ KodeDosen: string; Name: string; Email: string }[]>;
+  onSearch: (q: string, signal: AbortSignal) => Promise<{ KodeDosen: string; Name: string; Email: string }[]>;
   onChange: (kode: string, meta: string) => void;
   onClear: () => void;
   placeholder?: string;
@@ -761,6 +761,8 @@ export const DosenCombo: React.FC<{
   const [coords, setCoords] = React.useState<{ top: number; left: number; width: number } | null>(null);
   const popId = React.useRef(`dams-dc-${Math.random().toString(36).slice(2)}`).current;
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchReqRef = React.useRef(0);
+  const abortRef = React.useRef<AbortController | null>(null);
   const POP_W = 280;
 
   React.useEffect(() => {
@@ -792,8 +794,19 @@ export const DosenCombo: React.FC<{
     if (!open) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      const reqId = ++searchReqRef.current;
       setLoading(true);
-      onSearch(search).then((r) => { setResults(r || []); setLoading(false); }).catch(() => setLoading(false));
+      onSearch(search, ctrl.signal).then((r) => {
+        if (searchReqRef.current !== reqId) return;
+        setResults(r || []);
+        setLoading(false);
+      }).catch(() => {
+        if (searchReqRef.current !== reqId) return;
+        setLoading(false);
+      });
     }, 250);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search, open]);

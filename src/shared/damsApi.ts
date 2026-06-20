@@ -36,9 +36,9 @@ export class DamsApi {
     return `${this.apiBase.replace(/\/$/, '')}${path}`;
   }
 
-  private async getJson<T>(path: string): Promise<T | null> {
+  private async getJson<T>(path: string, signal?: AbortSignal): Promise<T | null> {
     const c = await this.getClient();
-    const r: HttpClientResponse = await c.get(this.url(path), AadHttpClient.configurations.v1);
+    const r: HttpClientResponse = await c.get(this.url(path), AadHttpClient.configurations.v1, { signal } as IHttpClientOptions);
     if (!r.ok) return null;
     return (await r.json()) as T;
   }
@@ -96,8 +96,8 @@ export class DamsApi {
     return { ok: true, codeNumber, linkDamsShare, raw: parsed };
   }
 
-  public searchDosens(q: string): Promise<{ KodeDosen: string; Name: string; Email: string; Count: number }[] | null> {
-    return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`);
+  public searchDosens(q: string, signal?: AbortSignal): Promise<{ KodeDosen: string; Name: string; Email: string; Count: number }[] | null> {
+    return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
   private buildSubmissionQs(filter: IListFilter): URLSearchParams {
@@ -114,14 +114,15 @@ export class DamsApi {
     if (filter.excludeStatus) qs.set('excludeStatus', 'true');
     if (filter.unassigned) qs.set('unassigned', 'true');
     if (filter.year) qs.set('year', String(filter.year));
+    if (filter.sortDir) qs.set('sortDir', filter.sortDir);
     return qs;
   }
 
-  public async listSubmissions(filter: IListFilter): Promise<IListResult | null> {
+  public async listSubmissions(filter: IListFilter, signal?: AbortSignal): Promise<IListResult | null> {
     const qs = this.buildSubmissionQs(filter);
     qs.set('page', String(filter.page || 1));
     qs.set('pageSize', String(filter.pageSize || 50));
-    return this.getJson<IListResult>(`/Submissions?${qs.toString()}`);
+    return this.getJson<IListResult>(`/Submissions?${qs.toString()}`, signal);
   }
 
   public async exportExcel(filter: IListFilter): Promise<void> {

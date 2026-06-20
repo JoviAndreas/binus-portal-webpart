@@ -134,6 +134,7 @@ export interface IListFilter {
   year?: number;
   page?: number;
   pageSize?: number;
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface IAutofill {

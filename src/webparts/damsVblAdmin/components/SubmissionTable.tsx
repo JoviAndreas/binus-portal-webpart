@@ -32,7 +32,7 @@ export interface ISubmissionTableProps {
   onTotalChange?: (n: number) => void;
 }
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 20;
 
 const th: React.CSSProperties = {
   textAlign: 'left',
@@ -97,7 +97,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [yearFilter, setYearFilter] = React.useState('');
   const [exporting, setExporting] = React.useState(false);
   const [page, setPage] = React.useState(1);
+  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
 
+  const reqIdRef = React.useRef(0);
   const [items, setItems] = React.useState<ISubmission[]>([]);
   const [total, setTotal] = React.useState(0);
   React.useEffect(() => { onTotalChange?.(total); }, [total, onTotalChange]);
@@ -136,23 +138,23 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     };
     const excludeStatus = !statusFilter;
     switch (chip) {
-      case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus, page, pageSize: PAGE_SIZE };
-      case 'unassigned': return { ...extra, unassigned: true, excludeStatus, page, pageSize: PAGE_SIZE };
-      case 'allactive':  return { ...extra, excludeStatus, page, pageSize: PAGE_SIZE };
+      case 'myqueue':    return { ...extra, assignedTo: me.Email || undefined, excludeStatus, page, pageSize: PAGE_SIZE, sortDir };
+      case 'unassigned': return { ...extra, unassigned: true, excludeStatus, page, pageSize: PAGE_SIZE, sortDir };
+      case 'allactive':  return { ...extra, excludeStatus, page, pageSize: PAGE_SIZE, sortDir };
     }
-  }, [chip, dosenFilter, kodeMKFilter, fakultasFilter, jurusanFilter, yearFilter, picFilter, statusFilter, me.Email, page]);
+  }, [chip, dosenFilter, kodeMKFilter, fakultasFilter, jurusanFilter, yearFilter, picFilter, statusFilter, me.Email, page, sortDir]);
 
   React.useEffect(() => {
-    let active = true;
+    const reqId = ++reqIdRef.current;
+    const ctrl = new AbortController();
     setLoading(true);
-    setItems([]);
     setError('');
     setLocalOverrides({});
     setRowErrors({});
     setPendingRejected({});
     setSelected(new Set());
-    api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0]).then((res) => {
-      if (!active) return;
+    api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0], ctrl.signal).then((res) => {
+      if (reqIdRef.current !== reqId) return;
       if (!res) {
         setError('Failed to load submissions.');
         setItems([]);
@@ -169,12 +171,12 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
         setTotal(res.total || 0);
       }
       setLoading(false);
-    }).catch(() => {
-      if (!active) return;
+    }).catch((err) => {
+      if (ctrl.signal.aborted || reqIdRef.current !== reqId) return;
       setError('Failed to load submissions.');
       setLoading(false);
     });
-    return () => { active = false; };
+    return () => { ctrl.abort(); };
   }, [api, buildFilter, reloadToken]);
 
   const switchChip = (c: FilterChip): void => {
@@ -337,7 +339,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const PaginationBar: React.FC = () => {
+  const PaginationBar = (): React.ReactElement => {
     const pageBtn = (p: number, label?: string): React.ReactElement => {
       const active = p === page;
       return (
@@ -346,7 +348,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           type="button"
           onClick={() => setPage(p)}
           style={{
-            minWidth: 32, height: 32, padding: '0 8px',
+            minWidth: 32, height: 32, padding: '0 8px', userSelect: 'none',
             border: active ? 'none' : `1px solid ${tokens.color.line}`,
             borderRadius: tokens.radius.sm,
             background: active ? tokens.color.blue : 'transparent',
@@ -379,22 +381,45 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
           {total} result(s) - page {page} of {pageCount}
         </span>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <GhostButton type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</GhostButton>
+          <button
+            type="button"
+            title={sortDir === 'desc' ? 'Newest first - click for oldest first' : 'Oldest first - click for newest first'}
+            onClick={() => { setSortDir(d => d === 'desc' ? 'asc' : 'desc'); setPage(1); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '3px 8px', borderRadius: 4, border: `1px solid ${tokens.color.line}`,
+              background: tokens.color.bg, cursor: 'pointer',
+              fontSize: tokens.font.label, color: tokens.color.text,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              {sortDir === 'desc'
+                ? <path d="M6 2v8M3 7l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                : <path d="M6 10V2M3 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              }
+            </svg>
+            {sortDir === 'desc' ? 'Newest' : 'Oldest'}
+          </button>
+          <GhostButton type="button" style={{ userSelect: 'none' }} disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</GhostButton>
           {pages}
-          <GhostButton type="button" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
+          <GhostButton type="button" style={{ userSelect: 'none' }} disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next</GhostButton>
         </div>
       </div>
     );
   };
-  const colCount = isSupervisor ? 11 : 10;
+  const showPicCol = isSupervisor || canEdit;
+  const colCount = isSupervisor ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9);
 
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
-    const d = new Date(iso);
+    // DB stores WIB (UTC+7) naive — append offset so browser parses correctly
+    const s = iso.includes('+') || iso.endsWith('Z') ? iso : iso + '+07:00';
+    const d = new Date(s);
+    const day = d.toLocaleDateString('id-ID', { weekday: 'short' });
     const date = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${date}, ${hh}.${mm}`;
+    return `${day}, ${date}, ${hh}.${mm}`;
   };
 
   const kLabel = (v: string | undefined): string => {
@@ -434,7 +459,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           <DosenCombo
             value={dosenFilter}
             valueMeta={dosenFilterMeta}
-            onSearch={(q) => api.searchDosens(q).then((r) => r || [])}
+            onSearch={(q, signal) => api.searchDosens(q, signal).then((r) => r || [])}
             onChange={(kode, meta) => { setDosenFilter(kode); setDosenFilterMeta(meta); setPage(1); }}
             onClear={() => { setDosenFilter(''); setDosenFilterMeta(''); setPage(1); }}
           />
@@ -622,11 +647,11 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
         </div>
       )}
 
-      <PaginationBar />
+      {PaginationBar()}
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isSupervisor ? 1300 : 1260 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isSupervisor ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150) }}>
           <thead>
             <tr>
               {isSupervisor && (
@@ -644,10 +669,10 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               <th style={{ ...th, minWidth: 200 }}>MK / Topik</th>
               <th style={{ ...th, width: 90 }}>Week / Sesi</th>
               <th style={{ ...th, minWidth: 140 }}>Status</th>
-              <th style={{ ...th, minWidth: 110 }}>PIC</th>
-              <th style={{ ...th, width: 38, textAlign: 'center' }}>KV</th>
-              <th style={{ ...th, width: 38, textAlign: 'center' }}>KA</th>
-              <th style={{ ...th, width: 38, textAlign: 'center' }}>KK</th>
+              {showPicCol && <th style={{ ...th, minWidth: 110 }}>PIC Editor</th>}
+              <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Video"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="15" height="10" rx="2"/><path d="M17 9l5-2v10l-5-2"/></svg></span></th>
+              <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Audio"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span></th>
+              <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Konten"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span></th>
               <th style={{ ...th, width: 60 }} />
             </tr>
           </thead>
@@ -666,7 +691,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                   <td style={td}><div style={sk(150)} /></td>
                   <td style={td}><div style={sk(60)} /></td>
                   <td style={td}><div style={sk(90)} /></td>
-                  <td style={td}><div style={sk(80)} /></td>
+                  {showPicCol && <td style={td}><div style={sk(80)} /></td>}
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
                   <td style={{ ...td, textAlign: 'center' }}><div style={{ ...sk(20), margin: '0 auto' }} /></td>
@@ -708,15 +733,13 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                     <td style={{ ...td, fontSize: tokens.font.micro, fontWeight: 700, color: tokens.color.blueDark }}>
                       <div>{s.CodeNumber}</div>
                       {(s.LinkDamsShare || s.LinkVideoFromLecturer) && (
-                        <a
-                          href={s.LinkDamsShare || s.LinkVideoFromLecturer}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(s.LinkDamsShare || s.LinkVideoFromLecturer || '', '_blank', 'noopener,noreferrer'); }}
-                          style={{ fontSize: '9px', fontWeight: 400, color: tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); window.open(s.LinkDamsShare || s.LinkVideoFromLecturer || '', '_blank'); }}
+                          style={{ fontSize: '9px', fontWeight: 400, color: tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                         >
                           open video
-                        </a>
+                        </button>
                       )}
                     </td>
                     <td style={td}>
@@ -756,9 +779,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                         {s.Topik}
                       </div>
                     </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {s.Week && <div style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>W{s.Week}</div>}
-                      {s.Session && <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>S{s.Session}</div>}
+                    <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      {(s.Week || s.Session) && (
+                        <span style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>
+                          {(s.Week || '-').padStart(2, '0')}/{(s.Session || '-').padStart(2, '0')}
+                        </span>
+                      )}
                     </td>
                     <td style={td}>
                       <StatusCombo
@@ -768,14 +794,16 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                       />
                       {rowErr && <div style={{ fontSize: tokens.font.micro, color: tokens.color.danger, marginTop: 3 }}>{rowErr}</div>}
                     </td>
-                    <td style={td}>
-                      <PicCombo
-                        value={val(s, 'PicEditing') as string}
-                        editors={editors}
-                        onChange={(email) => optimisticPatch(s.Id, { PicEditing: email })}
-                        disabled={!isSupervisor}
-                      />
-                    </td>
+                    {showPicCol && (
+                      <td style={td}>
+                        <PicCombo
+                          value={val(s, 'PicEditing') as string}
+                          editors={editors}
+                          onChange={(email) => optimisticPatch(s.Id, { PicEditing: email })}
+                          disabled={!isSupervisor}
+                        />
+                      </td>
+                    )}
                     {K_FIELDS.map((k) => {
                       const raw = val(s, k) as string | undefined;
                       const cur = parseInt(raw || '0', 10);
@@ -880,7 +908,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
         </table>
       </div>
 
-      <PaginationBar />
+      {PaginationBar()}
 
       {/* Intercept modal: user clicked Open with rows selected */}
       {openIntercept && (
