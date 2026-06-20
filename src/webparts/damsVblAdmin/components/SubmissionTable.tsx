@@ -391,7 +391,10 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
     const d = new Date(iso);
-    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const date = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${date}, ${hh}.${mm}`;
   };
 
   const kLabel = (v: string | undefined): string => {
