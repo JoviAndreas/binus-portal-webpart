@@ -1,30 +1,30 @@
 export const tokens = {
   color: {
-    orange: '#F3931B',
-    orangeDark: '#E48118',
-    blue: '#008ED3',
-    blueDark: '#024A7A',
-    blueLight: '#34AEE2',
-    text: '#5E5E5E',
-    textDark: '#1A1A1A',
-    ink: '#0B2C44',
-    bg: '#FFFFFF',
-    bgSoft: '#F7F7F7',
-    page: '#EEF2F6',
-    surfaceAlt: '#F4F7FA',
-    tint: '#EAF6FC',
-    tintBorder: '#BFE0F2',
-    border: '#E7E7E7',
-    line: '#E4E9ED',
-    inputBorder: '#C7D0D8',
-    inputHover: '#A9B6C0',
-    borderSoft: '#F3F3F3',
-    focus: '#008ED3',
-    placeholder: '#9AA6B0',
-    danger: '#C2362B',
-    dangerBg: '#FBECEC',
-    success: '#1E7B43',
-    successBg: '#E8F6EE'
+    orange:      'var(--bp-orange)',
+    orangeDark:  'var(--bp-orange-dark)',
+    blue:        'var(--bp-blue)',
+    blueDark:    'var(--bp-blue-dark)',
+    blueLight:   'var(--bp-blue-light)',
+    text:        'var(--bp-text)',
+    textDark:    'var(--bp-text-dark)',
+    ink:         'var(--bp-ink)',
+    bg:          'var(--bp-bg)',
+    bgSoft:      'var(--bp-bg-soft)',
+    page:        'var(--bp-page)',
+    surfaceAlt:  'var(--bp-surface-alt)',
+    tint:        'var(--bp-tint)',
+    tintBorder:  'var(--bp-tint-border)',
+    border:      'var(--bp-border)',
+    line:        'var(--bp-line)',
+    inputBorder: 'var(--bp-input-border)',
+    inputHover:  'var(--bp-input-hover)',
+    borderSoft:  'var(--bp-border-soft)',
+    focus:       'var(--bp-focus)',
+    placeholder: 'var(--bp-placeholder)',
+    danger:      'var(--bp-danger)',
+    dangerBg:    'var(--bp-danger-bg)',
+    success:     'var(--bp-success)',
+    successBg:   'var(--bp-success-bg)',
   },
   font: {
     family: '"Open Sans", "Segoe UI", system-ui, -apple-system, sans-serif',
@@ -38,9 +38,9 @@ export const tokens = {
   },
   radius: { xs: '3px', sm: '4px', md: '6px', lg: '8px', pill: '999px', control: '4px', card: '8px' },
   shadow: {
-    sm: '0 1px 0 rgba(11,44,68,.04)',
-    md: '0 1px 3px rgba(11,44,68,.08), 0 1px 1px rgba(11,44,68,.04)',
-    lg: '0 6px 20px rgba(11,44,68,.10)'
+    sm: 'var(--bp-shadow-sm)',
+    md: 'var(--bp-shadow-md)',
+    lg: 'var(--bp-shadow-lg)',
   },
   space: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px', xxl: '48px' },
   logo: 'https://binus.ac.id/wp-content/uploads/2022/08/logo-binus.svg'
@@ -104,25 +104,69 @@ export function injectTokens(): void {
   if (document.getElementById(ID)) return;
   const css = `
 :root {
-  --bp-orange: ${tokens.color.orange};
-  --bp-orange-dark: ${tokens.color.orangeDark};
-  --bp-blue: ${tokens.color.blue};
-  --bp-blue-dark: ${tokens.color.blueDark};
-  --bp-blue-light: ${tokens.color.blueLight};
-  --bp-text: ${tokens.color.text};
-  --bp-text-dark: ${tokens.color.textDark};
-  --bp-bg: ${tokens.color.bg};
-  --bp-bg-soft: ${tokens.color.bgSoft};
-  --bp-border: ${tokens.color.border};
-  --bp-border-soft: ${tokens.color.borderSoft};
-  --bp-font: ${tokens.font.family};
-  --bp-radius-sm: ${tokens.radius.sm};
-  --bp-radius-md: ${tokens.radius.md};
-  --bp-radius-lg: ${tokens.radius.lg};
-  --bp-radius-pill: ${tokens.radius.pill};
-  --bp-shadow-sm: ${tokens.shadow.sm};
-  --bp-shadow-md: ${tokens.shadow.md};
-  --bp-shadow-lg: ${tokens.shadow.lg};
+  --bp-orange:       #F3931B;
+  --bp-orange-dark:  #E48118;
+  --bp-blue:         #008ED3;
+  --bp-blue-dark:    #024A7A;
+  --bp-blue-light:   #34AEE2;
+  --bp-focus:        #008ED3;
+  --bp-danger:       #C2362B;
+  --bp-success:      #1E7B43;
+  --bp-text:         #5E5E5E;
+  --bp-text-dark:    #1A1A1A;
+  --bp-ink:          #0B2C44;
+  --bp-bg:           #FFFFFF;
+  --bp-bg-soft:      #F7F7F7;
+  --bp-page:         #EEF2F6;
+  --bp-surface-alt:  #F4F7FA;
+  --bp-tint:         #EAF6FC;
+  --bp-tint-border:  #BFE0F2;
+  --bp-border:       #E7E7E7;
+  --bp-line:         #E4E9ED;
+  --bp-input-border: #C7D0D8;
+  --bp-input-hover:  #A9B6C0;
+  --bp-border-soft:  #F3F3F3;
+  --bp-placeholder:  #9AA6B0;
+  --bp-danger-bg:    #FBECEC;
+  --bp-success-bg:   #E8F6EE;
+  --bp-shadow-sm:    0 1px 0 rgba(11,44,68,.04);
+  --bp-shadow-md:    0 1px 3px rgba(11,44,68,.08), 0 1px 1px rgba(11,44,68,.04);
+  --bp-shadow-lg:    0 6px 20px rgba(11,44,68,.10);
+  --bp-font:         "Open Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --bp-radius-sm:    4px; --bp-radius-md: 6px; --bp-radius-lg: 8px; --bp-radius-pill: 999px;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bp-text:         #C0C0C0;
+  --bp-text-dark:    #F0F0F0;
+  --bp-ink:          #D0DDE8;
+  --bp-bg:           #1E1E1E;
+  --bp-bg-soft:      #252525;
+  --bp-page:         #141414;
+  --bp-surface-alt:  #2A2A2A;
+  --bp-tint:         #1A2D3A;
+  --bp-tint-border:  #2A4A60;
+  --bp-border:       #383838;
+  --bp-line:         #333333;
+  --bp-input-border: #505050;
+  --bp-input-hover:  #686868;
+  --bp-border-soft:  #2A2A2A;
+  --bp-placeholder:  #787878;
+  --bp-danger-bg:    #3A1A1A;
+  --bp-success-bg:   #1A3024;
+  --bp-shadow-sm:    0 1px 0 rgba(0,0,0,.2);
+  --bp-shadow-md:    0 1px 3px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
+  --bp-shadow-lg:    0 6px 20px rgba(0,0,0,.5);
+} }
+.ms-Fabric.is-dark :root, [data-color-scheme="dark"] :root {
+  --bp-text:         #C0C0C0; --bp-text-dark: #F0F0F0; --bp-ink: #D0DDE8;
+  --bp-bg:           #1E1E1E; --bp-bg-soft:   #252525; --bp-page: #141414;
+  --bp-surface-alt:  #2A2A2A; --bp-tint:      #1A2D3A; --bp-tint-border: #2A4A60;
+  --bp-border:       #383838; --bp-line:      #333333; --bp-input-border: #505050;
+  --bp-input-hover:  #686868; --bp-border-soft: #2A2A2A; --bp-placeholder: #787878;
+  --bp-danger-bg:    #3A1A1A; --bp-success-bg: #1A3024;
+  --bp-shadow-sm:    0 1px 0 rgba(0,0,0,.2);
+  --bp-shadow-md:    0 1px 3px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
+  --bp-shadow-lg:    0 6px 20px rgba(0,0,0,.5);
 }
 .bp-root { font-family: var(--bp-font); color: var(--bp-text); line-height: 1.5; }
 .bp-root *, .bp-root *::before, .bp-root *::after { box-sizing: border-box; }

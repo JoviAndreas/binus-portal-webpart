@@ -424,9 +424,9 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   const kLabel = (v: string | undefined): string => {
     const n = parseInt(v || '0', 10);
-    if (n <= 1) return 'W';
-    if (n <= 3) return 'M';
-    return 'E';
+    if (n <= 1) return 'Weak';
+    if (n <= 3) return 'Moderate';
+    return 'Excellent';
   };
   const kColor = (v: string | undefined): string => {
     const n = parseInt(v || '0', 10);
