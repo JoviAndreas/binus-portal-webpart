@@ -146,3 +146,19 @@ export interface IAutofill {
   fakultas: string;
   jurusan: string;
 }
+
+export interface IUploadSessionRequest {
+  Email: string; Name: string; KodeDosen: string;
+  KodeMatakuliah: string; NamaMatakuliah: string;
+  Topik: string; Description: string;
+  Week: string; Session: string; JudulVideo: string;
+  RumpunIlmu: string; Kampus: string; Fakultas: string; Jurusan: string; Tags: string;
+  FileName: string; FileSize: number;
+}
+
+export interface IUploadSessionResult {
+  uploadUrl: string;
+  recordId: string;
+  codeNumber: string;
+  expiresAt?: string;
+}

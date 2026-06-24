@@ -4,7 +4,7 @@ import { DamsApi } from '../../../shared/damsApi';
 import { Combobox } from '../../../shared/Combobox';
 import { sanitizeName, parseFilename, buildDescription, buildTags, mapCampus, fuzzyPick } from '../../../shared/sanitize';
 import { Card, CardTitle, Field, TextInput, PrimaryButton, GhostButton, MessageBar } from '../../../shared/DamsUi';
-import { IAutofill } from '../../../shared/damsTypes';
+import { IAutofill, IUploadSessionRequest } from '../../../shared/damsTypes';
 
 export interface IBatchUploadFormProps {
   api: DamsApi;
@@ -25,6 +25,7 @@ interface IRow {
   Session: string;
   JudulVideo: string;
   status: RowStatus;
+  progress: number;
   message?: string;
   codeNumber?: string;
   link?: string;
@@ -55,9 +56,34 @@ const makeRow = (): IRow => {
     Week: '1',
     Session: '1',
     JudulVideo: '',
-    status: 'pending'
+    status: 'pending',
+    progress: 0
   };
 };
+
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB = 32 x 320KB (Graph requirement)
+
+async function uploadChunked(file: File, uploadUrl: string, onProgress: (pct: number) => void): Promise<void> {
+  const total = file.size;
+  let start = 0;
+  while (start < total) {
+    const end = Math.min(start + CHUNK_SIZE, total) - 1;
+    const slice = file.slice(start, end + 1);
+    let ok = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const resp = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: slice,
+        headers: { 'Content-Range': `bytes ${start}-${end}/${total}`, 'Content-Length': String(slice.size) }
+      });
+      if (resp.status === 200 || resp.status === 201 || resp.status === 202) { ok = true; break; }
+      if (attempt === 1) throw new Error(`Chunk upload failed: HTTP ${resp.status}`);
+    }
+    if (!ok) throw new Error('Chunk failed after retry.');
+    start = end + 1;
+    onProgress(Math.round((start / total) * 100));
+  }
+}
 
 const DropZone: React.FC<{ file: File | null; onFile: (f: File | null) => void; style?: React.CSSProperties }> = ({ file, onFile, style }) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -196,66 +222,53 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
 
   const removeRow = (id: string): void => setRows((prev) => prev.filter((r) => r.id !== id));
 
-  const buildForm = (row: IRow): FormData | string => {
+  const buildRequest = (row: IRow): IUploadSessionRequest | string => {
     if (!shared.Email || !shared.Name || !shared.KodeDosen) return 'Lecturer fields are required.';
     if (!shared.KodeMatakuliah || !shared.NamaMatakuliah || !shared.RumpunIlmu || !shared.Kampus || !shared.Fakultas || !shared.Jurusan) {
       return 'Shared course/location fields are required.';
     }
     if (!row.Topik || !row.JudulVideo) return 'Topik and Judul are required.';
     if (!row.file) return 'Pick a .mp4 file for this row.';
-    const fd = new FormData();
-    fd.append('Email', shared.Email);
-    fd.append('Name', shared.Name);
-    fd.append('KodeDosen', shared.KodeDosen);
-    fd.append('KodeMatakuliah', shared.KodeMatakuliah);
-    fd.append('NamaMatakuliah', shared.NamaMatakuliah);
-    fd.append('Topik', row.Topik);
-    fd.append('Description', buildDescription(row.Topik));
-    fd.append('Week', row.Week);
-    fd.append('Session', row.Session);
-    fd.append('JudulVideo', row.JudulVideo);
-    fd.append('RumpunIlmu', shared.RumpunIlmu);
-    fd.append('Kampus', shared.Kampus);
-    fd.append('Fakultas', shared.Fakultas);
-    fd.append('Jurusan', shared.Jurusan);
-    fd.append('Tags', buildTags(shared.Tags, shared.Kampus));
-    fd.append('Video', row.file);
-    return fd;
+    return {
+      Email: shared.Email, Name: shared.Name, KodeDosen: shared.KodeDosen,
+      KodeMatakuliah: shared.KodeMatakuliah, NamaMatakuliah: shared.NamaMatakuliah,
+      Topik: row.Topik, Description: buildDescription(row.Topik),
+      Week: row.Week, Session: row.Session, JudulVideo: row.JudulVideo,
+      RumpunIlmu: shared.RumpunIlmu, Kampus: shared.Kampus, Fakultas: shared.Fakultas,
+      Jurusan: shared.Jurusan, Tags: buildTags(shared.Tags, shared.Kampus),
+      FileName: row.file.name, FileSize: row.file.size
+    };
   };
 
   const runAll = async (): Promise<void> => {
     setError('');
-    if (rows.length === 0) {
-      setError('Add at least one video row.');
-      return;
-    }
+    if (rows.length === 0) { setError('Add at least one video row.'); return; }
     setRunning(true);
     try {
       for (const row of rows) {
         if (row.status === 'done') continue;
-        const fd = buildForm(row);
-        if (typeof fd === 'string') {
-          setRow(row.id, { status: 'error', message: fd });
-          continue;
-        }
-        setRow(row.id, { status: 'uploading', message: undefined });
+        const req = buildRequest(row);
+        if (typeof req === 'string') { setRow(row.id, { status: 'error', message: req }); continue; }
+        setRow(row.id, { status: 'uploading', progress: 0, message: undefined });
         try {
-          const res = await api.submitVideo(fd);
-          if (res.ok) {
-            setRow(row.id, { status: 'done', codeNumber: res.codeNumber, link: res.linkDamsShare });
+          const session = await api.createUploadSession(req);
+          if (!session) { setRow(row.id, { status: 'error', message: 'Failed to create upload session.' }); continue; }
+          await uploadChunked(row.file!, session.uploadUrl, (pct) => setRow(row.id, { progress: pct }));
+          const done = await api.completeUpload(session.recordId);
+          if (done.ok) {
+            setRow(row.id, { status: 'done', progress: 100, codeNumber: done.codeNumber });
           } else {
-            setRow(row.id, { status: 'error', message: res.message });
+            setRow(row.id, { status: 'error', progress: 0, message: done.message });
           }
         } catch (e) {
-          setRow(row.id, { status: 'error', message: 'Upload failed.' });
+          setRow(row.id, { status: 'error', message: e instanceof Error ? e.message : 'Upload failed.' });
         }
       }
     } finally {
       setRunning(false);
-      const doneRows = rows.filter((r) => r.status === 'done');
-      if (doneRows.length > 0) {
-        setSummary({ shared: { ...shared }, rows: doneRows });
-      }
+      const freshRows = rows;
+      const doneRows = freshRows.filter((r) => r.status === 'done');
+      if (doneRows.length > 0) setSummary({ shared: { ...shared }, rows: doneRows });
     }
   };
 
@@ -279,6 +292,115 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.lg }}>
+
+      <Card>
+        <CardTitle sub="Filename pattern {KodeMK}_{WW}{SS}_{Topik}.mp4 prefills row fields automatically.">Videos</CardTitle>
+        {error && (
+          <div style={{ marginBottom: tokens.space.sm }}>
+            <MessageBar kind="error">{error}</MessageBar>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.sm }}>
+          {rows.map((row, idx) => (
+            <div
+              key={row.id}
+              style={{
+                border: `1px solid ${tokens.color.line}`,
+                borderRadius: tokens.radius.lg,
+                background: tokens.color.bg,
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{ background: tokens.color.surfaceAlt, borderBottom: `1px solid ${tokens.color.line}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: tokens.font.label, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {idx + 1}
+                    </span>
+                    <span style={{ fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>Video {idx + 1}</span>
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: tokens.space.md }}>
+                    {row.status === 'uploading' && (
+                      <span style={{ fontSize: tokens.font.label, fontWeight: 700, color: tokens.color.blue }}>{row.progress}%</span>
+                    )}
+                    <span style={{ fontSize: tokens.font.label, fontWeight: 700, color: statusColor[row.status] }}>
+                      {row.status === 'done' && row.codeNumber ? row.codeNumber : row.status !== 'pending' ? row.status : ''}
+                    </span>
+                    {row.status === 'pending' && rows.length > 1 && (
+                      <button type="button" onClick={() => removeRow(row.id)} className="dams-btn-link">
+                        Remove
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {row.status === 'uploading' && (
+                  <div style={{ height: 3, background: tokens.color.line }}>
+                    <div style={{ height: '100%', width: `${row.progress}%`, background: tokens.color.blue, transition: 'width .2s ease' }} />
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: tokens.space.md }}>
+              {row.status === 'done' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.md, padding: tokens.space.md, background: tokens.color.tint, border: `1px solid ${tokens.color.tintBorder}`, borderRadius: tokens.radius.md }}>
+                  <span style={{ width: 36, height: 36, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: 18, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 36px' }}>✓</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: tokens.font.body, fontWeight: 700, color: tokens.color.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.file ? row.file.name : row.JudulVideo}
+                    </div>
+                    <div style={{ fontSize: tokens.font.label, color: tokens.color.text, marginTop: 2 }}>
+                      Uploaded as <strong style={{ fontFamily: 'monospace', color: tokens.color.blueDark }}>{row.codeNumber}</strong>
+                      {row.file && <> · {(row.file.size / 1024 / 1024).toFixed(1)} MB</>}
+                    </div>
+                  </div>
+                  {row.link && (
+                    <a
+                      href={row.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="dams-btn-ghost"
+                      style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}
+                    >
+                      Open in SharePoint
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <DropZone
+                    file={row.file}
+                    onFile={(f) => onRowFile(row.id, f)}
+                    style={{ marginBottom: tokens.space.md }}
+                  />
+                  <div style={{ display: 'grid', gap: tokens.space.sm, gridTemplateColumns: 'repeat(12, 1fr)' }}>
+                    <Field label="Week" style={{ gridColumn: 'span 2 / span 2' }}>
+                      <TextInput inputMode="numeric" pattern="[0-9]*" maxLength={5} value={row.Week} onChange={(e) => setRow(row.id, { Week: onlyDigits(e.target.value) })} placeholder="01" />
+                    </Field>
+                    <Field label="Session" style={{ gridColumn: 'span 2 / span 2' }}>
+                      <TextInput inputMode="numeric" pattern="[0-9]*" maxLength={5} value={row.Session} onChange={(e) => setRow(row.id, { Session: onlyDigits(e.target.value) })} placeholder="01" />
+                    </Field>
+                    <Field label="Topik" style={{ gridColumn: 'span 4 / span 4' }}>
+                      <TextInput value={row.Topik} onChange={(e) => setRow(row.id, { Topik: sanitizeName(e.target.value) })} placeholder="Pointers and Memory" />
+                    </Field>
+                    <Field label="Judul Video" style={{ gridColumn: 'span 4 / span 4' }}>
+                      <TextInput maxLength={50} value={row.JudulVideo} onChange={(e) => setRow(row.id, { JudulVideo: sanitizeName(e.target.value) })} placeholder="Short title, max 50 chars" />
+                    </Field>
+                  </div>
+                  {row.status === 'error' && row.message && (
+                    <p style={{ fontSize: tokens.font.label, color: tokens.color.danger, marginTop: tokens.space.sm }}>{row.message}</p>
+                  )}
+                </>
+              )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: tokens.space.md }}>
+          <GhostButton type="button" onClick={addRow}>
+            + Add video
+          </GhostButton>
+        </div>
+      </Card>
 
       <Card>
         <CardTitle sub="Applied to every video in this batch.">Lecturer</CardTitle>
@@ -377,105 +499,6 @@ export const BatchUploadForm: React.FC<IBatchUploadFormProps> = ({ api, initial,
           <Field label="Tags / Keywords" hint={`Auto-append: vbl, video based learning, CAMPUS: ${shared.Kampus}`} style={{ gridColumn: 'span 12 / span 12' }}>
             <TextInput value={shared.Tags} onChange={(e) => setS('Tags', e.target.value)} placeholder="event, hospitality, introduction" />
           </Field>
-        </div>
-      </Card>
-
-      <Card>
-        <CardTitle sub="Filename pattern {KodeMK}_{WW}{SS}_{Topik}.mp4 prefills row fields automatically.">Videos</CardTitle>
-        {error && (
-          <div style={{ marginBottom: tokens.space.sm }}>
-            <MessageBar kind="error">{error}</MessageBar>
-          </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.space.sm }}>
-          {rows.map((row, idx) => (
-            <div
-              key={row.id}
-              style={{
-                border: `1px solid ${tokens.color.line}`,
-                borderRadius: tokens.radius.lg,
-                background: tokens.color.bg,
-                overflow: 'hidden'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: tokens.color.surfaceAlt, borderBottom: `1px solid ${tokens.color.line}` }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: tokens.font.label, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {idx + 1}
-                  </span>
-                  <span style={{ fontSize: tokens.font.small, fontWeight: 700, color: tokens.color.ink }}>Video {idx + 1}</span>
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: tokens.space.md }}>
-                  <span style={{ fontSize: tokens.font.label, fontWeight: 700, color: statusColor[row.status] }}>
-                    {row.status === 'done' && row.codeNumber ? row.codeNumber : row.status !== 'pending' ? row.status : ''}
-                  </span>
-                  {row.status === 'pending' && rows.length > 1 && (
-                    <button type="button" onClick={() => removeRow(row.id)} className="dams-btn-link">
-                      Remove
-                    </button>
-                  )}
-                </span>
-              </div>
-              <div style={{ padding: tokens.space.md }}>
-              {row.status === 'done' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: tokens.space.md, padding: tokens.space.md, background: tokens.color.tint, border: `1px solid ${tokens.color.tintBorder}`, borderRadius: tokens.radius.md }}>
-                  <span style={{ width: 36, height: 36, borderRadius: '50%', background: tokens.color.blue, color: '#fff', fontSize: 18, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 36px' }}>✓</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: tokens.font.body, fontWeight: 700, color: tokens.color.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {row.file ? row.file.name : row.JudulVideo}
-                    </div>
-                    <div style={{ fontSize: tokens.font.label, color: tokens.color.text, marginTop: 2 }}>
-                      Uploaded as <strong style={{ fontFamily: 'monospace', color: tokens.color.blueDark }}>{row.codeNumber}</strong>
-                      {row.file && <> · {(row.file.size / 1024 / 1024).toFixed(1)} MB</>}
-                    </div>
-                  </div>
-                  {row.link && (
-                    <a
-                      href={row.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="dams-btn-ghost"
-                      style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}
-                    >
-                      Open in SharePoint
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <DropZone
-                    file={row.file}
-                    onFile={(f) => onRowFile(row.id, f)}
-                    style={{ marginBottom: tokens.space.md }}
-                  />
-                  <div style={{ display: 'grid', gap: tokens.space.sm, gridTemplateColumns: 'repeat(12, 1fr)' }}>
-                    <Field label="Week" style={{ gridColumn: 'span 2 / span 2' }}>
-                      <TextInput inputMode="numeric" pattern="[0-9]*" maxLength={5} value={row.Week} onChange={(e) => setRow(row.id, { Week: onlyDigits(e.target.value) })} placeholder="01" />
-                    </Field>
-                    <Field label="Session" style={{ gridColumn: 'span 2 / span 2' }}>
-                      <TextInput inputMode="numeric" pattern="[0-9]*" maxLength={5} value={row.Session} onChange={(e) => setRow(row.id, { Session: onlyDigits(e.target.value) })} placeholder="01" />
-                    </Field>
-                    <Field label="Topik" style={{ gridColumn: 'span 4 / span 4' }}>
-                      <TextInput value={row.Topik} onChange={(e) => setRow(row.id, { Topik: sanitizeName(e.target.value) })} placeholder="Pointers and Memory" />
-                    </Field>
-                    <Field label="Judul Video" style={{ gridColumn: 'span 4 / span 4' }}>
-                      <TextInput maxLength={50} value={row.JudulVideo} onChange={(e) => setRow(row.id, { JudulVideo: sanitizeName(e.target.value) })} placeholder="Short title, max 50 chars" />
-                    </Field>
-                  </div>
-                  {row.status === 'error' && row.message && (
-                    <p style={{ fontSize: tokens.font.label, color: tokens.color.danger, marginTop: tokens.space.sm }}>{row.message}</p>
-                  )}
-                </>
-              )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: tokens.space.md }}>
-          <GhostButton type="button" onClick={addRow}>
-            + Add video
-          </GhostButton>
         </div>
       </Card>
 

@@ -100,6 +100,32 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
+  public async createUploadSession(data: import('./damsTypes').IUploadSessionRequest): Promise<import('./damsTypes').IUploadSessionResult | null> {
+    const c = await this.getClient();
+    const r = await c.post(
+      this.url('/VideoSubmission/upload-session'),
+      AadHttpClient.configurations.v1,
+      { body: JSON.stringify(data) as unknown as string, headers: { 'Content-Type': 'application/json' } } as IHttpClientOptions
+    );
+    if (!r.ok) return null;
+    return r.json() as Promise<import('./damsTypes').IUploadSessionResult>;
+  }
+
+  public async completeUpload(recordId: string): Promise<SubmitResult> {
+    const c = await this.getClient();
+    const r = await c.post(
+      this.url(`/VideoSubmission/${recordId}/complete`),
+      AadHttpClient.configurations.v1,
+      {} as IHttpClientOptions
+    );
+    const text = await r.text();
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(text); } catch (e) { /* not json */ }
+    if (!r.ok) return { ok: false, status: r.status, message: text || r.statusText };
+    const obj = (parsed || {}) as Record<string, unknown>;
+    return { ok: true, codeNumber: (obj.codeNumber || obj.CodeNumber || '') as string, raw: parsed };
+  }
+
   private buildSubmissionQs(filter: IListFilter): URLSearchParams {
     const qs = new URLSearchParams();
     qs.set('assetType', filter.assetType || 'vbl');
