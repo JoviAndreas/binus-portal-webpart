@@ -9,6 +9,7 @@ export interface IComboboxProps {
   searchPlaceholder?: string;
   allowFree?: boolean;
   emptyText?: string;
+  hasError?: boolean;
 }
 
 // Token-styled combobox with type-ahead filter and optional free input.
@@ -19,7 +20,8 @@ export const Combobox: React.FC<IComboboxProps> = ({
   placeholder = 'Select...',
   searchPlaceholder = 'Search...',
   allowFree,
-  emptyText = 'Nothing found.'
+  emptyText = 'Nothing found.',
+  hasError
 }) => {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -59,8 +61,8 @@ export const Combobox: React.FC<IComboboxProps> = ({
           fontSize: tokens.font.body,
           textAlign: 'left',
           color: value ? tokens.color.ink : '#9AA6B0',
-          background: tokens.color.bg,
-          border: `1px solid ${tokens.color.inputBorder}`,
+          background: hasError ? '#FFF5F5' : tokens.color.bg,
+          border: `1px solid ${hasError ? tokens.color.danger : tokens.color.inputBorder}`,
           borderRadius: tokens.radius.sm,
           cursor: 'pointer'
         }}

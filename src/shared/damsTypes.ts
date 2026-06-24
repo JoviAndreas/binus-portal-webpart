@@ -147,18 +147,24 @@ export interface IAutofill {
   jurusan: string;
 }
 
+export interface ITempUploadSessionResult {
+  uploadUrl: string;
+  tempPath: string;
+  expiresAt?: string;
+}
+
 export interface IUploadSessionRequest {
   Email: string; Name: string; KodeDosen: string;
   KodeMatakuliah: string; NamaMatakuliah: string;
   Topik: string; Description: string;
   Week: string; Session: string; JudulVideo: string;
   RumpunIlmu: string; Kampus: string; Fakultas: string; Jurusan: string; Tags: string;
-  FileName: string; FileSize: number;
+  TempItemId: string;
+  TempFileName: string;
 }
 
 export interface IUploadSessionResult {
-  uploadUrl: string;
   recordId: string;
   codeNumber: string;
-  expiresAt?: string;
+  movedItemId?: string;
 }

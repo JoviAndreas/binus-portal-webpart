@@ -96,8 +96,23 @@ export class DamsApi {
     return { ok: true, codeNumber, linkDamsShare, raw: parsed };
   }
 
-  public searchDosens(q: string, signal?: AbortSignal): Promise<{ KodeDosen: string; Name: string; Email: string; Count: number }[] | null> {
+  public searchDosens(q: string, signal?: AbortSignal): Promise<{ KodeDosen: string; Name: string | null; Email: string | null; Kampus: string | null; Fakultas: string | null; Jurusan: string | null; Count: number }[] | null> {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
+  }
+
+  public searchMatakuliah(q: string, signal?: AbortSignal): Promise<{ KodeMatakuliah: string; NamaMatakuliah: string | null; RumpunIlmu: string | null; Count: number }[] | null> {
+    return this.getJson(`/Submissions/matakuliah?q=${encodeURIComponent(q)}`, signal);
+  }
+
+  public async createTempUploadSession(fileName: string, videoIndex: number): Promise<import('./damsTypes').ITempUploadSessionResult | null> {
+    const c = await this.getClient();
+    const r = await c.post(
+      this.url('/VideoSubmission/temp-upload-session'),
+      AadHttpClient.configurations.v1,
+      { body: JSON.stringify({ FileName: fileName, VideoIndex: videoIndex }) as unknown as string, headers: { 'Content-Type': 'application/json' } } as IHttpClientOptions
+    );
+    if (!r.ok) return null;
+    return r.json() as Promise<import('./damsTypes').ITempUploadSessionResult>;
   }
 
   public async createUploadSession(data: import('./damsTypes').IUploadSessionRequest): Promise<import('./damsTypes').IUploadSessionResult | null> {

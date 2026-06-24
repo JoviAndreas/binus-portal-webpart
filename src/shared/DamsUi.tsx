@@ -198,17 +198,19 @@ export const Field: React.FC<{
   children: React.ReactNode;
   style?: React.CSSProperties;
 }> = ({ label, hint, error, children, style }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
-    <label style={{ fontSize: tokens.font.label, fontWeight: 700, color: tokens.color.ink, letterSpacing: '.01em' }}>{label}</label>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, ...style }} {...(error ? { 'data-field-error': '1' } : {})}>
+    <label style={{ fontSize: tokens.font.label, fontWeight: 700, color: error ? tokens.color.danger : tokens.color.ink, letterSpacing: '.01em' }}>{label}</label>
     {children}
-    {hint && <span style={{ fontSize: tokens.font.micro, lineHeight: 1.4, color: tokens.color.text }}>{hint}</span>}
-    {error && <span style={{ fontSize: tokens.font.micro, fontWeight: 700, color: tokens.color.danger }}>{error}</span>}
+    {/* Always render footer row so siblings in same grid row stay same height */}
+    <span style={{ fontSize: tokens.font.micro, fontWeight: error ? 700 : 400, color: error ? tokens.color.danger : hint ? tokens.color.text : 'transparent', lineHeight: 1.4, marginTop: 1, userSelect: 'none' }}>
+      {error ? `⚠ ${error}` : hint ? hint : ' '}
+    </span>
   </div>
 );
 
-export const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => {
-  const { className, ...rest } = props;
-  return <input {...rest} className={`dams-in${className ? ' ' + className : ''}`} />;
+export const TextInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }> = (props) => {
+  const { className, hasError, style, ...rest } = props;
+  return <input {...rest} className={`dams-in${className ? ' ' + className : ''}`} style={{ ...(style || {}), ...(hasError ? { borderColor: tokens.color.danger, background: '#FFF5F5' } : {}) }} />;
 };
 
 export const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (props) => {
@@ -747,14 +749,14 @@ export const SearchableSelect: React.FC<{
 export const DosenCombo: React.FC<{
   value?: string;
   valueMeta?: string;
-  onSearch: (q: string, signal: AbortSignal) => Promise<{ KodeDosen: string; Name: string; Email: string }[]>;
+  onSearch: (q: string, signal: AbortSignal) => Promise<{ KodeDosen: string; Name: string | null; Email: string | null }[]>;
   onChange: (kode: string, meta: string) => void;
   onClear: () => void;
   placeholder?: string;
 }> = ({ value, valueMeta, onSearch, onChange, onClear, placeholder = 'Kode Dosen' }) => {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [results, setResults] = React.useState<{ KodeDosen: string; Name: string; Email: string }[]>([]);
+  const [results, setResults] = React.useState<{ KodeDosen: string; Name: string | null; Email: string | null }[]>([]);
   const [loading, setLoading] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const btnRef = React.useRef<HTMLButtonElement>(null);

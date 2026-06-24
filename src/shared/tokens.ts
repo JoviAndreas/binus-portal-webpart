@@ -135,28 +135,6 @@ export function injectTokens(): void {
   --bp-font:         "Open Sans","Segoe UI",system-ui,-apple-system,sans-serif;
   --bp-radius-sm:    4px; --bp-radius-md: 6px; --bp-radius-lg: 8px; --bp-radius-pill: 999px;
 }
-@media (prefers-color-scheme: dark) { :root {
-  --bp-text:         #C0C0C0;
-  --bp-text-dark:    #F0F0F0;
-  --bp-ink:          #D0DDE8;
-  --bp-bg:           #1E1E1E;
-  --bp-bg-soft:      #252525;
-  --bp-page:         #141414;
-  --bp-surface-alt:  #2A2A2A;
-  --bp-tint:         #1A2D3A;
-  --bp-tint-border:  #2A4A60;
-  --bp-border:       #383838;
-  --bp-line:         #333333;
-  --bp-input-border: #505050;
-  --bp-input-hover:  #686868;
-  --bp-border-soft:  #2A2A2A;
-  --bp-placeholder:  #787878;
-  --bp-danger-bg:    #3A1A1A;
-  --bp-success-bg:   #1A3024;
-  --bp-shadow-sm:    0 1px 0 rgba(0,0,0,.2);
-  --bp-shadow-md:    0 1px 3px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
-  --bp-shadow-lg:    0 6px 20px rgba(0,0,0,.5);
-} }
 .ms-Fabric.is-dark :root, [data-color-scheme="dark"] :root {
   --bp-text:         #C0C0C0; --bp-text-dark: #F0F0F0; --bp-ink: #D0DDE8;
   --bp-bg:           #1E1E1E; --bp-bg-soft:   #252525; --bp-page: #141414;
