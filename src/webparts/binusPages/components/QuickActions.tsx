@@ -83,21 +83,6 @@ export const QuickActions: React.FC<IQuickActionsProps> = ({ email, nip, binusia
           {flash === email ? 'Copied' : 'Copy email'}
         </button>
       )}
-      {nip && (
-        <button style={btnStyle} onClick={(e) => { stopBtn(e); copy(nip); }}>
-          {flash === nip ? 'Copied' : `NIP ${nip}`}
-        </button>
-      )}
-      {binusianId && (
-        <button
-          type="button"
-          style={idLabelStyle}
-          onClick={(e) => { stopBtn(e); copy(binusianId); }}
-          title="Click to copy"
-        >
-          {flash === binusianId ? 'Copied' : `ID ${binusianId}`}
-        </button>
-      )}
     </div>
   );
 };

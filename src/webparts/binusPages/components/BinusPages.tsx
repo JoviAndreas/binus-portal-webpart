@@ -351,10 +351,9 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
           <span style={styles.name}>{h.nama || 'Unnamed'}</span>
           {h.email && <span style={styles.email}>{h.email}</span>}
           {h.namaDep && <span style={styles.meta}>{h.namaDep}</span>}
-          {h.nip && <span style={{ ...styles.meta, fontSize: 11, opacity: 0.8 }}>NIP {h.nip}</span>}
         </div>
       </div>
-      <QuickActions email={h.email} nip={h.nip} binusianId={h.binusianId} />
+      <QuickActions email={h.email} />
     </div>
   );
 

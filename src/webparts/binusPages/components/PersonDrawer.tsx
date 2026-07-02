@@ -356,7 +356,7 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
             {hit.namaDep && <span style={styles.meta}>{hit.namaDep}</span>}
             {hit.email && <span style={styles.meta}>{hit.email}</span>}
             <div style={{ marginTop: 10 }}>
-              <QuickActions email={hit.email} nip={hit.nip} binusianId={hit.binusianId} />
+              <QuickActions email={hit.email} />
             </div>
           </div>
         </header>
