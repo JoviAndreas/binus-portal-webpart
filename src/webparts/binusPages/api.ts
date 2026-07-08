@@ -65,6 +65,48 @@ export interface IEmployeeDetail { [k: string]: unknown }
 export interface IEmployeeTraining { [k: string]: unknown }
 export interface IResearchPaper { [k: string]: unknown }
 
+export interface IScholarPublication {
+  title?: string;
+  academicYear?: string;
+  mediaHolderName?: string;
+}
+
+export interface IScholarCommunityService {
+  communityName?: string;
+  topicName?: string;
+  subtopicName?: string;
+  location?: string;
+  eventDate?: string;
+}
+
+export interface IScholarIndustrySector {
+  effectiveDate?: string;
+  sektorIndustri?: string;
+  organisasi?: string;
+  deskripsiPekerjaan?: string;
+  alamat?: string;
+  kota?: string;
+}
+
+export interface ILecturerScholar {
+  lecturerId?: string;
+  binusianId?: string;
+  name?: string;
+  jja?: string;
+  jjaDesc?: string;
+  acadOrg?: string;
+  acadOrgDesc?: string;
+  department?: string;
+  departmentDesc?: string;
+  email?: string;
+  publications?: IScholarPublication[];
+  communityServices?: IScholarCommunityService[];
+  industrySectors?: IScholarIndustrySector[];
+  researchCount?: number;
+  intellectualPropertyCount?: number;
+  achievementCount?: number;
+}
+
 export class BinusPagesApi {
   private clientPromise: Promise<AadHttpClient> | null = null;
 
@@ -157,5 +199,10 @@ export class BinusPagesApi {
   researchPapers(kdDosen: string): Promise<IResearchPaper[] | null> {
     if (!kdDosen) return Promise.resolve(null);
     return this.getJson<IResearchPaper[]>(`/ResearchPapers/${encodeURIComponent(kdDosen)}`);
+  }
+
+  scholar(binusianId: string): Promise<ILecturerScholar | null> {
+    if (!binusianId) return Promise.resolve(null);
+    return this.getJson<ILecturerScholar>(`/BinusScholar/${encodeURIComponent(binusianId)}`);
   }
 }

@@ -4,7 +4,7 @@ import { Shimmer } from '../../../shared/LoadingFX';
 import { Icon } from '../../../shared/Icon';
 import { PersonAvatar } from './PersonAvatar';
 import { QuickActions } from './QuickActions';
-import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile } from '../api';
+import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile, ILecturerScholar } from '../api';
 
 export interface IPersonDrawerProps {
   hit: ISearchHit;
@@ -277,13 +277,14 @@ const PaperItem: React.FC<{ data: { [k: string]: unknown }; index: number }> = (
   );
 };
 
-type TabKey = 'profile' | 'org' | 'knowledge' | 'papers' | 'trainings';
+type TabKey = 'profile' | 'org' | 'knowledge' | 'papers' | 'trainings' | 'scholar';
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'profile', label: 'Profile' },
   { key: 'org', label: 'Org' },
   { key: 'knowledge', label: 'Knowledge' },
   { key: 'papers', label: 'Papers' },
-  { key: 'trainings', label: 'Trainings' }
+  { key: 'trainings', label: 'Trainings' },
+  { key: 'scholar', label: 'Binus Scholar' }
 ];
 
 export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi, webUrl, onClose }) => {
@@ -292,6 +293,7 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
   const [papers, setPapers] = React.useState<IResearchPaper[] | null | undefined>(undefined);
   const [orgChain, setOrgChain] = React.useState<IOrgPerson[] | null | undefined>(undefined);
   const [kmap, setKmap] = React.useState<IKnowledgeProfile | null | undefined>(undefined);
+  const [scholar, setScholar] = React.useState<ILecturerScholar | null | undefined>(undefined);
   const [activeTab, setActiveTab] = React.useState<TabKey>('profile');
 
   React.useEffect(() => {
@@ -331,6 +333,13 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
     void api.knowledgeProfile(hit.email || '').then((d) => alive && setKmap(d));
     return () => { alive = false; };
   }, [activeTab, hit.email, api, kmap]);
+
+  React.useEffect(() => {
+    if (activeTab !== 'scholar' || scholar !== undefined) return;
+    let alive = true;
+    void agentApi.scholar(hit.binusianId || '').then((d) => alive && setScholar(d));
+    return () => { alive = false; };
+  }, [activeTab, hit.binusianId, agentApi, scholar]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -485,6 +494,66 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
                 </div>
               );
             })}
+          </section>
+        )}
+
+        {activeTab === 'scholar' && (
+          <section style={styles.section}>
+            <div style={styles.sectionTitle}>Binus Scholar</div>
+            {scholar === undefined && <Shimmer height={80} />}
+            {scholar === null && <div style={styles.empty}>No Binus Scholar profile.</div>}
+            {scholar && (
+              <>
+                <div style={styles.row}><span style={styles.rowLabel}>Jja</span><ValueCell field="jja" value={[scholar.jja, scholar.jjaDesc].filter(Boolean).join(' - ')} /></div>
+                <div style={styles.row}><span style={styles.rowLabel}>Acad Org</span><ValueCell field="acadOrgDesc" value={scholar.acadOrgDesc} /></div>
+                <div style={styles.row}><span style={styles.rowLabel}>Department</span><ValueCell field="departmentDesc" value={scholar.departmentDesc} /></div>
+                <div style={styles.row}><span style={styles.rowLabel}>Email</span><ValueCell field="email" value={scholar.email} /></div>
+                <div style={{ display: 'flex', gap: 12, margin: '14px 0' }}>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.researchCount ?? 0}</div>
+                    <div style={{ fontSize: 11, color: tokens.color.text }}>Research</div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.intellectualPropertyCount ?? 0}</div>
+                    <div style={{ fontSize: 11, color: tokens.color.text }}>IP</div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.achievementCount ?? 0}</div>
+                    <div style={{ fontSize: 11, color: tokens.color.text }}>Achievement</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: tokens.color.text, fontWeight: 700, margin: '16px 0 8px' }}>Publications</div>
+                {(!scholar.publications || scholar.publications.length === 0) && <div style={styles.empty}>No publications.</div>}
+                {scholar.publications && scholar.publications.map((p, i) => (
+                  <div key={i} style={styles.listItem}>
+                    <div style={{ fontWeight: 600 }}>{p.title || `Publication ${i + 1}`}</div>
+                    {(p.academicYear || p.mediaHolderName) && (
+                      <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                        {[p.academicYear, p.mediaHolderName].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: tokens.color.text, fontWeight: 700, margin: '16px 0 8px' }}>Community Services</div>
+                {(!scholar.communityServices || scholar.communityServices.length === 0) && <div style={styles.empty}>No community services.</div>}
+                {scholar.communityServices && scholar.communityServices.map((c, i) => (
+                  <div key={i} style={styles.listItem}>
+                    <div style={{ fontWeight: 600 }}>{c.communityName || `Service ${i + 1}`}</div>
+                    {(c.topicName || c.subtopicName) && <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>{[c.topicName, c.subtopicName].filter(Boolean).join(' · ')}</div>}
+                    {(c.location || c.eventDate) && <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>{[c.location, c.eventDate].filter(Boolean).join(' · ')}</div>}
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: tokens.color.text, fontWeight: 700, margin: '16px 0 8px' }}>Industry Sectors</div>
+                {(!scholar.industrySectors || scholar.industrySectors.length === 0) && <div style={styles.empty}>No industry sectors.</div>}
+                {scholar.industrySectors && scholar.industrySectors.map((s, i) => (
+                  <div key={i} style={styles.listItem}>
+                    <div style={{ fontWeight: 600 }}>{s.sektorIndustri || s.organisasi || `Sector ${i + 1}`}</div>
+                    {(s.organisasi || s.deskripsiPekerjaan) && <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>{[s.organisasi, s.deskripsiPekerjaan].filter(Boolean).join(' · ')}</div>}
+                    {(s.alamat || s.kota || s.effectiveDate) && <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>{[s.alamat, s.kota, s.effectiveDate].filter(Boolean).join(' · ')}</div>}
+                  </div>
+                ))}
+              </>
+            )}
           </section>
         )}
       </aside>

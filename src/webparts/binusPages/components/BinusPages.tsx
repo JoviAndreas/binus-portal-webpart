@@ -81,7 +81,7 @@ function snapToHit(s: ISnapshotEntry): ISearchHit {
     nama: s.name?.trim() || s.id,
     namaDep: s.dep,
     email: s.email,
-    nip: s.nip || s.id
+    nip: s.nip || ''
   };
 }
 
