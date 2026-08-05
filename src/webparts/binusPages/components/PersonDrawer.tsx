@@ -438,47 +438,63 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
 
         {activeTab === 'knowledge' && (
           <section style={styles.section}>
-            <div style={styles.sectionTitle}>Tacit knowledge</div>
-            {knowledgeItems === undefined && <Shimmer height={80} />}
-            {knowledgeItems && knowledgeItems.tacit.length === 0 && (
-              <div style={styles.empty}>No tacit knowledge items tracked.</div>
-            )}
-            {knowledgeItems && knowledgeItems.tacit.map((t, i) => {
-              const done = !!t.doneDate || t.alreadyHaveKnowledge;
-              const overdue = !done && new Date(t.dueDate).getTime() < Date.now();
-              const status = done ? 'Done' : overdue ? 'Overdue' : 'Open';
-              const statusColor = done ? '#2e7d32' : overdue ? '#c62828' : tokens.color.text;
-              return (
-                <div key={i} style={styles.listItem}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontWeight: 600 }}>{t.title}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: statusColor }}>{status}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
-                    {[t.department, t.knowledgeLevel, String(t.year)].filter(Boolean).join(' · ')}
-                  </div>
-                  {(t.approach || t.dueDate) && (
-                    <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>
-                      {[t.approach, t.dueDate ? `Due ${new Date(t.dueDate).toLocaleDateString()}` : ''].filter(Boolean).join(' · ')}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <a
+              href="https://binusianorg.sharepoint.com/SitePages/Knowledge-Mapping-App.aspx"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...linkPillStyle, marginBottom: 16 }}
+            >
+              <span>Add or update knowledge in Knowledge Mapping App</span>
+              <ExtArrow />
+            </a>
 
-            <div style={{ ...styles.sectionTitle, marginTop: 20 }}>Explicit knowledge authored</div>
-            {knowledgeItems === undefined && <Shimmer height={50} />}
-            {knowledgeItems && knowledgeItems.explicit.length === 0 && (
-              <div style={styles.empty}>No documented knowledge artifacts authored.</div>
+            {knowledgeItems === undefined && <Shimmer height={80} />}
+
+            {knowledgeItems && knowledgeItems.tacit.length === 0 && knowledgeItems.explicit.length === 0 && (
+              <div style={styles.empty}>No knowledge items tracked for this person yet. Use the link above to add one.</div>
             )}
-            {knowledgeItems && knowledgeItems.explicit.map((e, i) => (
-              <div key={i} style={styles.listItem}>
-                <div style={{ fontWeight: 600 }}>{e.documentTitle}</div>
-                <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
-                  {[e.documentType, e.department, String(e.year)].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-            ))}
+
+            {knowledgeItems && knowledgeItems.tacit.length > 0 && (
+              <>
+                <div style={styles.sectionTitle}>Tacit knowledge</div>
+                {knowledgeItems.tacit.map((t, i) => {
+                  const done = !!t.doneDate || t.alreadyHaveKnowledge;
+                  const overdue = !done && new Date(t.dueDate).getTime() < Date.now();
+                  const status = done ? 'Done' : overdue ? 'Overdue' : 'Open';
+                  const statusColor = done ? '#2e7d32' : overdue ? '#c62828' : tokens.color.text;
+                  return (
+                    <div key={i} style={styles.listItem}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontWeight: 600 }}>{t.title}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: statusColor }}>{status}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                        {[t.department, t.knowledgeLevel, String(t.year)].filter(Boolean).join(' · ')}
+                      </div>
+                      {(t.approach || t.dueDate) && (
+                        <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>
+                          {[t.approach, t.dueDate ? `Due ${new Date(t.dueDate).toLocaleDateString()}` : ''].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {knowledgeItems && knowledgeItems.explicit.length > 0 && (
+              <>
+                <div style={{ ...styles.sectionTitle, marginTop: 20 }}>Explicit knowledge authored</div>
+                {knowledgeItems.explicit.map((e, i) => (
+                  <div key={i} style={styles.listItem}>
+                    <div style={{ fontWeight: 600 }}>{e.documentTitle}</div>
+                    <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                      {[e.documentType, e.department, String(e.year)].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </section>
         )}
 
