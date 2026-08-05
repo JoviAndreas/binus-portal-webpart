@@ -4,7 +4,7 @@ import { Shimmer } from '../../../shared/LoadingFX';
 import { Icon } from '../../../shared/Icon';
 import { PersonAvatar } from './PersonAvatar';
 import { QuickActions } from './QuickActions';
-import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile, ILecturerScholar } from '../api';
+import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile, IKnowledgeItems, ILecturerScholar } from '../api';
 
 export interface IPersonDrawerProps {
   hit: ISearchHit;
@@ -269,6 +269,7 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
   const [papers, setPapers] = React.useState<IResearchPaper[] | null | undefined>(undefined);
   const [orgChain, setOrgChain] = React.useState<IOrgPerson[] | null | undefined>(undefined);
   const [kmap, setKmap] = React.useState<IKnowledgeProfile | null | undefined>(undefined);
+  const [knowledgeItems, setKnowledgeItems] = React.useState<IKnowledgeItems | null | undefined>(undefined);
   const [scholar, setScholar] = React.useState<ILecturerScholar | null | undefined>(undefined);
   const [activeTab, setActiveTab] = React.useState<TabKey>('profile');
 
@@ -309,6 +310,13 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
     void api.knowledgeProfile(hit.email || '').then((d) => alive && setKmap(d));
     return () => { alive = false; };
   }, [hit.email, api, kmap]);
+
+  React.useEffect(() => {
+    if (activeTab !== 'knowledge' || knowledgeItems !== undefined) return;
+    let alive = true;
+    void api.knowledgeItems(hit.email || '').then((d) => alive && setKnowledgeItems(d));
+    return () => { alive = false; };
+  }, [activeTab, hit.email, api, knowledgeItems]);
 
   React.useEffect(() => {
     if (activeTab !== 'scholar' || scholar !== undefined) return;
@@ -430,20 +438,47 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
 
         {activeTab === 'knowledge' && (
           <section style={styles.section}>
-            <div style={styles.sectionTitle}>Knowledge profile</div>
-            {kmap === undefined && <Shimmer height={50} />}
-            {kmap === null && <div style={styles.empty}>No knowledge mapping record.</div>}
-            {kmap && (
-              <>
-                <div style={styles.row}><span style={styles.rowLabel}>Name</span><ValueCell field="name" value={kmap.name} /></div>
-                <div style={styles.row}><span style={styles.rowLabel}>Email</span><ValueCell field="email" value={kmap.email} /></div>
-                <div style={styles.row}><span style={styles.rowLabel}>Division</span><ValueCell field="division" value={kmap.division} /></div>
-                <div style={styles.row}><span style={styles.rowLabel}>Department</span><ValueCell field="department" value={kmap.department} /></div>
-                <div style={styles.row}><span style={styles.rowLabel}>Position</span><ValueCell field="position" value={kmap.position} /></div>
-                <div style={styles.row}><span style={styles.rowLabel}>Band</span><ValueCell field="band" value={kmap.band} /></div>
-                {kmap.leadEmail && <div style={styles.row}><span style={styles.rowLabel}>Reports to</span><ValueCell field="email" value={kmap.leadEmail} /></div>}
-              </>
+            <div style={styles.sectionTitle}>Tacit knowledge</div>
+            {knowledgeItems === undefined && <Shimmer height={80} />}
+            {knowledgeItems && knowledgeItems.tacit.length === 0 && (
+              <div style={styles.empty}>No tacit knowledge items tracked.</div>
             )}
+            {knowledgeItems && knowledgeItems.tacit.map((t, i) => {
+              const done = !!t.doneDate || t.alreadyHaveKnowledge;
+              const overdue = !done && new Date(t.dueDate).getTime() < Date.now();
+              const status = done ? 'Done' : overdue ? 'Overdue' : 'Open';
+              const statusColor = done ? '#2e7d32' : overdue ? '#c62828' : tokens.color.text;
+              return (
+                <div key={i} style={styles.listItem}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontWeight: 600 }}>{t.title}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: statusColor }}>{status}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                    {[t.department, t.knowledgeLevel, String(t.year)].filter(Boolean).join(' · ')}
+                  </div>
+                  {(t.approach || t.dueDate) && (
+                    <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>
+                      {[t.approach, t.dueDate ? `Due ${new Date(t.dueDate).toLocaleDateString()}` : ''].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div style={{ ...styles.sectionTitle, marginTop: 20 }}>Explicit knowledge authored</div>
+            {knowledgeItems === undefined && <Shimmer height={50} />}
+            {knowledgeItems && knowledgeItems.explicit.length === 0 && (
+              <div style={styles.empty}>No documented knowledge artifacts authored.</div>
+            )}
+            {knowledgeItems && knowledgeItems.explicit.map((e, i) => (
+              <div key={i} style={styles.listItem}>
+                <div style={{ fontWeight: 600 }}>{e.documentTitle}</div>
+                <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                  {[e.documentType, e.department, String(e.year)].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            ))}
           </section>
         )}
 

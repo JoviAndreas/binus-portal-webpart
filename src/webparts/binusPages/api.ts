@@ -61,6 +61,31 @@ export interface IKnowledgeProfile {
   leadEmail: string;
 }
 
+export interface ITacitKnowledgeItem {
+  title: string;
+  department: string;
+  knowledgeLevel: string;
+  year: number;
+  approach?: string;
+  dueDate: string;
+  doneDate?: string;
+  alreadyHaveKnowledge: boolean;
+}
+
+export interface IExplicitKnowledgeItem {
+  documentTitle: string;
+  documentType?: string;
+  department: string;
+  year: number;
+  dueDate: string;
+  doneDate?: string;
+}
+
+export interface IKnowledgeItems {
+  tacit: ITacitKnowledgeItem[];
+  explicit: IExplicitKnowledgeItem[];
+}
+
 export interface IEmployeeDetail { [k: string]: unknown }
 export interface IEmployeeTraining { [k: string]: unknown }
 export interface IResearchPaper { [k: string]: unknown }
@@ -153,6 +178,11 @@ export class BinusPagesApi {
   knowledgeProfile(email: string): Promise<IKnowledgeProfile | null> {
     if (!email) return Promise.resolve(null);
     return this.getJson<IKnowledgeProfile>(`/KnowledgeMap?email=${encodeURIComponent(email)}`);
+  }
+
+  knowledgeItems(email: string): Promise<IKnowledgeItems | null> {
+    if (!email) return Promise.resolve(null);
+    return this.getJson<IKnowledgeItems>(`/KnowledgeItems?email=${encodeURIComponent(email)}`);
   }
 
   async click(binusianId: string): Promise<void> {
