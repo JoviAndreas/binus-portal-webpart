@@ -18,7 +18,7 @@ const styles: { [k: string]: React.CSSProperties } = {
   scrim: {
     position: 'fixed',
     top: 48,
-    left: 48,
+    left: 0,
     right: 0,
     bottom: 0,
     background: 'rgba(2,18,30,.45)',
@@ -88,30 +88,6 @@ const styles: { [k: string]: React.CSSProperties } = {
   },
   empty: { fontSize: 13, color: tokens.color.text, fontStyle: 'italic', padding: '4px 0' }
 };
-
-const HIDE_FIELDS = new Set([
-  'binusianid', 'nip', 'binus_photo', 'photo', 'foto', 'image', 'picture', 'profilepicture'
-]);
-
-function fieldOrder(obj: { [k: string]: unknown }): Array<[string, unknown]> {
-  return Object.entries(obj).filter(([k, v]) => {
-    if (k.startsWith('_')) return false;
-    if (HIDE_FIELDS.has(k.toLowerCase())) return false;
-    if (v === null || v === undefined || v === '') return false;
-    if (typeof v === 'object') return false;
-    if (typeof v === 'string' && v.length > 400) return false;
-    return true;
-  });
-}
-
-function humanize(k: string): string {
-  return k
-    .replace(/_/g, ' ')
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^\w/, (c) => c.toUpperCase());
-}
 
 const URL_FIELDS = new Set(['binus_scholar', 'scholar', 'scopus', 'orcid', 'linkedin', 'sinta', 'researchgate', 'website', 'web', 'url']);
 
@@ -328,11 +304,11 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
   }, [activeTab, hit.email, api, orgChain]);
 
   React.useEffect(() => {
-    if (activeTab !== 'knowledge' || kmap !== undefined) return;
+    if (kmap !== undefined) return;
     let alive = true;
     void api.knowledgeProfile(hit.email || '').then((d) => alive && setKmap(d));
     return () => { alive = false; };
-  }, [activeTab, hit.email, api, kmap]);
+  }, [hit.email, api, kmap]);
 
   React.useEffect(() => {
     if (activeTab !== 'scholar' || scholar !== undefined) return;
@@ -400,15 +376,30 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
             {detail === undefined && <Shimmer height={80} />}
             {detail === null && <div style={styles.empty}>No profile data.</div>}
             {detail && detail.length === 0 && <div style={styles.empty}>No profile data.</div>}
-            {d0 &&
-              fieldOrder(d0)
-                .slice(0, 18)
-                .map(([k, v]) => (
-                  <div key={k} style={styles.row}>
-                    <span style={styles.rowLabel}>{humanize(k)}</span>
-                    <ValueCell field={k} value={v} />
-                  </div>
-                ))}
+            {d0 && (() => {
+              const name = String(d0['nama'] || kmap?.name || '');
+              const email = String(d0['email'] || kmap?.email || hit.email || '');
+              const division = String(d0['nama_div'] || kmap?.division || '');
+              const department = String(d0['nama_dep'] || kmap?.department || '');
+              const position = String(d0['nm_jabatan'] || kmap?.position || '');
+              const band = String(kmap?.band || '');
+              const reportsTo = String(kmap?.leadEmail || '');
+              const kodeDosen = String(d0['kddsn'] || '');
+              const binusScholar = String(d0['binus_scholar'] || '');
+              return (
+                <>
+                  <div style={styles.row}><span style={styles.rowLabel}>Name</span><ValueCell field="nama" value={name} /></div>
+                  <div style={styles.row}><span style={styles.rowLabel}>Email</span><ValueCell field="email" value={email} /></div>
+                  {division && <div style={styles.row}><span style={styles.rowLabel}>Division</span><ValueCell field="nama_div" value={division} /></div>}
+                  {department && <div style={styles.row}><span style={styles.rowLabel}>Department</span><ValueCell field="nama_dep" value={department} /></div>}
+                  <div style={styles.row}><span style={styles.rowLabel}>Position</span><ValueCell field="nm_jabatan" value={position} /></div>
+                  <div style={styles.row}><span style={styles.rowLabel}>Band</span><ValueCell field="band" value={band} /></div>
+                  <div style={styles.row}><span style={styles.rowLabel}>Reports to</span><ValueCell field="email" value={reportsTo} /></div>
+                  <div style={styles.row}><span style={styles.rowLabel}>Kode Dosen</span><ValueCell field="kddsn" value={kodeDosen} /></div>
+                  <div style={styles.row}><span style={styles.rowLabel}>Binus Scholar</span><ValueCell field="binus_scholar" value={binusScholar} /></div>
+                </>
+              );
+            })()}
           </section>
         )}
 
