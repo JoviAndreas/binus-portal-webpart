@@ -21,6 +21,7 @@ export interface IBinusPagesProps {
 
 type Mode = 'simple' | 'advanced';
 type GroupBy = 'none' | 'dep';
+const PAGE_SIZE = 12;
 
 const RECENT_KEY = 'bp:binuspages:recent';
 const MAX_RECENT = 5;
@@ -80,6 +81,9 @@ function snapToHit(s: ISnapshotEntry): ISearchHit {
     binusianId: s.id,
     nama: s.name?.trim() || s.id,
     namaDep: s.dep,
+    namaBu: s.bu,
+    namaDiv: s.div,
+    namaGroupbu: s.groupbu,
     email: s.email,
     nip: s.nip || ''
   };
@@ -227,6 +231,8 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
   const debounced = useDebouncedValue(q, 80);
 
   const [hits, setHits] = React.useState<ISearchHit[] | null>(null);
+  const [page, setPage] = React.useState(1);
+  React.useEffect(() => { setPage(1); }, [hits]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [recent, setRecent] = React.useState<string[]>(() => loadRecent());
@@ -320,7 +326,7 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
     if (!hits || groupBy === 'none') return null;
     const map = new Map<string, ISearchHit[]>();
     for (const h of hits) {
-      const k = (h.namaDep || '- Unspecified -').trim();
+      const k = (h.namaDep || h.namaDiv || h.namaBu || h.namaGroupbu || '- Unspecified -').trim();
       const a = map.get(k) || [];
       a.push(h);
       map.set(k, a);
@@ -350,7 +356,9 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
           <span style={styles.name}>{h.nama || 'Unnamed'}</span>
           {h.email && <span style={styles.email}>{h.email}</span>}
-          {h.namaDep && <span style={styles.meta}>{h.namaDep}</span>}
+          {(h.namaDep || h.namaDiv || h.namaBu || h.namaGroupbu) && (
+            <span style={styles.meta}>{h.namaDep || h.namaDiv || h.namaBu || h.namaGroupbu}</span>
+          )}
         </div>
       </div>
       <QuickActions email={h.email} />
@@ -376,10 +384,6 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
             onKeyDown={(e) => { if (e.key === 'Enter' && mode === 'advanced') runAdvanced(); }}
             type="search"
           />
-        </div>
-        <div style={styles.toggleGroup} role="tablist">
-          <button style={toggleBtnStyle(mode === 'simple')} onClick={() => setMode('simple')}>Simple</button>
-          <button style={toggleBtnStyle(mode === 'advanced')} onClick={() => setMode('advanced')}>Advanced</button>
         </div>
         <div style={styles.toggleGroup}>
           <button style={toggleBtnStyle(groupBy === 'none')} onClick={() => setGroupBy('none')}>List</button>
@@ -503,7 +507,41 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
       )}
 
       {!loading && hits && hits.length > 0 && groupBy === 'none' && (
-        <div style={styles.grid}>{hits.slice(0, 100).map(renderCard)}</div>
+        <>
+          <div style={styles.grid}>
+            {hits.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(renderCard)}
+            {Array.from({ length: Math.max(0, PAGE_SIZE - (hits.length - (page - 1) * PAGE_SIZE)) }).map((_, i) => (
+              <div key={`filler-${i}`} style={{ visibility: 'hidden', pointerEvents: 'none' }} aria-hidden="true">
+                {renderCard({ nama: 'Filler Name', email: 'filler@binus.edu', namaDep: 'Filler Department' }, i)}
+              </div>
+            ))}
+          </div>
+          {hits.length > PAGE_SIZE && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
+              <button
+                style={{ ...toggleBtnStyle(false), opacity: page <= 1 ? 0.4 : 1, cursor: page <= 1 ? 'default' : 'pointer' }}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
+              <span style={{ fontSize: 13, color: tokens.color.text }}>
+                Page {page} of {Math.ceil(hits.length / PAGE_SIZE)} ({hits.length} results)
+              </span>
+              <button
+                style={{
+                  ...toggleBtnStyle(false),
+                  opacity: page >= Math.ceil(hits.length / PAGE_SIZE) ? 0.4 : 1,
+                  cursor: page >= Math.ceil(hits.length / PAGE_SIZE) ? 'default' : 'pointer'
+                }}
+                disabled={page >= Math.ceil(hits.length / PAGE_SIZE)}
+                onClick={() => setPage((p) => Math.min(Math.ceil(hits.length / PAGE_SIZE), p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {!loading && hits && hits.length > 0 && grouped && (

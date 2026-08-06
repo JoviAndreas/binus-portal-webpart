@@ -4,6 +4,9 @@ export interface ISearchHit {
   binusianId?: string;
   nama?: string;
   namaDep?: string;
+  namaBu?: string;
+  namaDiv?: string;
+  namaGroupbu?: string;
   nip?: string;
   weight?: number;
   email?: string;
@@ -34,6 +37,9 @@ export interface ISnapshotEntry {
   name: string;
   email: string;
   dep: string;
+  bu: string;
+  div: string;
+  groupbu: string;
   role: string;
   leadBinusianId?: string;
   leadEmail?: string;
