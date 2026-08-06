@@ -3,7 +3,7 @@
   "solution": {
     "name": "BINUS Portal - Webpart",
     "id": "7ea7a772-04fa-43fb-97c1-8887acd76179",
-    "version": "1.0.29.0",
+    "version": "1.0.30.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -30,7 +30,7 @@
         "title": "binus-portal-webpart Feature",
         "description": "Activates the BINUS Portal webparts.",
         "id": "680a2fea-8737-49ec-962f-09f2a78ddd0d",
-        "version": "1.0.29.0"
+        "version": "1.0.30.0"
       }
     ],
     "webApiPermissionRequests": [
