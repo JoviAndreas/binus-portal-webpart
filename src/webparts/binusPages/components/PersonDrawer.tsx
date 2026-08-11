@@ -550,20 +550,22 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
                 <div style={styles.row}><span style={styles.rowLabel}>Acad Org</span><ValueCell field="acadOrgDesc" value={scholar.acadOrgDesc} /></div>
                 <div style={styles.row}><span style={styles.rowLabel}>Department</span><ValueCell field="departmentDesc" value={scholar.departmentDesc} /></div>
                 <div style={styles.row}><span style={styles.rowLabel}>Email</span><ValueCell field="email" value={scholar.email} /></div>
-                <div style={{ display: 'flex', gap: 12, margin: '14px 0' }}>
-                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.researchCount ?? 0}</div>
-                    <div style={{ fontSize: 11, color: tokens.color.text }}>Research</div>
+                {((scholar.researchCount ?? 0) > 0 || (scholar.intellectualPropertyCount ?? 0) > 0 || (scholar.achievementCount ?? 0) > 0) && (
+                  <div style={{ display: 'flex', gap: 12, margin: '14px 0' }}>
+                    <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.researchCount ?? 0}</div>
+                      <div style={{ fontSize: 11, color: tokens.color.text }}>Research</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.intellectualPropertyCount ?? 0}</div>
+                      <div style={{ fontSize: 11, color: tokens.color.text }}>IP</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.achievementCount ?? 0}</div>
+                      <div style={{ fontSize: 11, color: tokens.color.text }}>Achievement</div>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.intellectualPropertyCount ?? 0}</div>
-                    <div style={{ fontSize: 11, color: tokens.color.text }}>IP</div>
-                  </div>
-                  <div style={{ flex: 1, textAlign: 'center', padding: '10px 8px', border: `1px solid ${tokens.color.border}`, borderRadius: tokens.radius.sm }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: tokens.color.textDark }}>{scholar.achievementCount ?? 0}</div>
-                    <div style={{ fontSize: 11, color: tokens.color.text }}>Achievement</div>
-                  </div>
-                </div>
+                )}
                 <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: tokens.color.text, fontWeight: 700, margin: '16px 0 8px' }}>Publications</div>
                 {(!scholar.publications || scholar.publications.length === 0) && <div style={styles.empty}>No publications.</div>}
                 {scholar.publications && scholar.publications.map((p, i) => (
