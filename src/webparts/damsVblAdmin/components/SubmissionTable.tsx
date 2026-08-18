@@ -83,10 +83,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
   const jurusanSeenRef = React.useRef(new Set<string>());
-  const kodeMKSeenRef = React.useRef(new Set<string>());
   const [fakultasOptions, setFakultasOptions] = React.useState<string[]>([]);
   const [jurusanOptions, setJurusanOptions] = React.useState<string[]>([]);
-  const [kodeMKOptions, setKodeMKOptions] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     api.getFaculties().then((list) => {
@@ -110,6 +108,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [localOverrides, setLocalOverrides] = React.useState<Record<string, Partial<ISubmission>>>({});
   // Per-row inline error flash
   const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({});
+  // Per-row "Copied!" flash after copying the DAMS link
+  const [copiedLinkId, setCopiedLinkId] = React.useState<string | null>(null);
+  const copyDamsLink = (id: string, link: string): void => {
+    void navigator.clipboard.writeText(link).then(() => {
+      setCopiedLinkId(id);
+      setTimeout(() => setCopiedLinkId((cur) => (cur === id ? null : cur)), 1800);
+    });
+  };
   // Pending Rejected: rowId -> rejection reason being typed
   const [pendingRejected, setPendingRejected] = React.useState<Record<string, string>>({});
   // Intercept: open drawer while rows selected
@@ -163,10 +169,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
         const loaded = res.items || [];
         loaded.forEach((s) => {
           if (s.Jurusan) jurusanSeenRef.current.add(s.Jurusan);
-          if (s.KodeMatakuliah) kodeMKSeenRef.current.add(s.KodeMatakuliah);
         });
         setJurusanOptions(Array.from(jurusanSeenRef.current).sort());
-        setKodeMKOptions(Array.from(kodeMKSeenRef.current).sort());
         setItems(loaded);
         setTotal(res.total || 0);
       }
@@ -185,10 +189,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setPicFilter('');
     setStatusFilter('');
     jurusanSeenRef.current = new Set();
-    kodeMKSeenRef.current = new Set();
     setFakultasOptions([]);
     setJurusanOptions([]);
-    setKodeMKOptions([]);
   };
 
   const quickFilter = (field: 'dosen' | 'jurusan' | 'kodeMK', value: string): void => {
@@ -486,7 +488,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           />
           <SearchableSelect
             value={kodeMKFilter}
-            options={kodeMKOptions}
+            options={[]}
+            onSearch={(q) => api.searchMatakuliah(q).then((list) => (list || []).map((m) => ({
+              value: m.KodeMatakuliah,
+              label: m.NamaMatakuliah ? `${m.KodeMatakuliah} - ${m.NamaMatakuliah}` : m.KodeMatakuliah,
+              meta: m.NamaMatakuliah || undefined,
+            })))}
             onChange={(v) => { setKodeMKFilter(v); setPage(1); }}
             placeholder="Kode MK"
           />
@@ -781,9 +788,18 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {(s.Week || s.Session) && (
-                        <span style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>
+                        <div style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>
                           {(s.Week || '-').padStart(2, '0')}/{(s.Session || '-').padStart(2, '0')}
-                        </span>
+                        </div>
+                      )}
+                      {s.LinkDamsShare && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); copyDamsLink(s.Id, s.LinkDamsShare!); }}
+                          style={{ fontSize: '9px', fontWeight: 400, color: copiedLinkId === s.Id ? tokens.color.success : tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: 2 }}
+                        >
+                          {copiedLinkId === s.Id ? 'Copied!' : 'copy DAMS link'}
+                        </button>
                       )}
                     </td>
                     <td style={td}>

@@ -594,6 +594,12 @@ export const PicCombo: React.FC<{
   );
 };
 
+export interface ISearchableSelectRemoteOption {
+  value: string;
+  label: string;
+  meta?: string;
+}
+
 let _ssId = 0;
 export const SearchableSelect: React.FC<{
   value?: string;
@@ -602,11 +608,18 @@ export const SearchableSelect: React.FC<{
   optionMeta?: Record<string, string>;
   /** Optional display label per option value */
   optionLabel?: Record<string, string>;
+  /**
+   * When set, the dropdown searches the backend instead of filtering the static
+   * `options` list client-side - use for fields with more distinct values than are
+   * practical to preload (e.g. thousands of course codes). Debounced, race-safe.
+   */
+  onSearch?: (q: string) => Promise<ISearchableSelectRemoteOption[]>;
+  debounceMs?: number;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
-}> = ({ value, options, optionMeta, optionLabel, onChange, placeholder = 'All', disabled, style }) => {
+}> = ({ value, options, optionMeta, optionLabel, onSearch, debounceMs = 250, onChange, placeholder = 'All', disabled, style }) => {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const ref = React.useRef<HTMLDivElement>(null);
@@ -615,13 +628,37 @@ export const SearchableSelect: React.FC<{
   const popId = React.useRef(`dams-ss-${++_ssId}`).current;
   const POP_W = 240;
 
+  const [remoteOptions, setRemoteOptions] = React.useState<ISearchableSelectRemoteOption[]>([]);
+  const [remoteLoading, setRemoteLoading] = React.useState(false);
+  const timerRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (!onSearch || !open || !search.trim()) { setRemoteOptions([]); return; }
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      setRemoteLoading(true);
+      onSearch(search).then((res) => setRemoteOptions(res)).catch(() => setRemoteOptions([])).finally(() => setRemoteLoading(false));
+    }, debounceMs);
+    return () => { if (timerRef.current !== null) window.clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, open, onSearch, debounceMs]);
+
+  const remoteOptionLabel = React.useMemo(() => {
+    const m: Record<string, string> = { ...optionLabel };
+    remoteOptions.forEach((o) => { m[o.value] = o.label; });
+    return m;
+  }, [remoteOptions, optionLabel]);
+
   const q = search.toLowerCase();
-  const filtered = options.filter((o) => {
-    if (!q) return true;
-    if (o.toLowerCase().includes(q)) return true;
-    if (optionMeta?.[o]?.toLowerCase().includes(q)) return true;
-    return false;
-  });
+  const filtered = onSearch
+    ? remoteOptions.map((o) => o.value)
+    : options.filter((o) => {
+      if (!q) return true;
+      if (o.toLowerCase().includes(q)) return true;
+      if (optionMeta?.[o]?.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  const effectiveOptionLabel = onSearch ? remoteOptionLabel : optionLabel;
 
   React.useEffect(() => {
     if (!open) { setCoords(null); return; }
@@ -649,7 +686,7 @@ export const SearchableSelect: React.FC<{
     };
   }, [open, popId]);
 
-  const displayValue = value ? (optionLabel?.[value] || value) : undefined;
+  const displayValue = value ? (effectiveOptionLabel?.[value] || value) : undefined;
 
   return (
     <div ref={ref} style={{ display: 'inline-block', ...style }}>
@@ -720,7 +757,10 @@ export const SearchableSelect: React.FC<{
               <span style={{ fontSize: tokens.font.small, color: tokens.color.text, fontStyle: 'italic' }}>Clear</span>
             </button>
           )}
-          {filtered.map((o) => (
+          {remoteLoading && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>Searching...</div>
+          )}
+          {!remoteLoading && filtered.map((o) => (
             <button
               key={o}
               type="button"
@@ -729,7 +769,7 @@ export const SearchableSelect: React.FC<{
             >
               <div>
                 <div style={{ fontSize: tokens.font.small, color: tokens.color.ink, fontWeight: o === value ? 700 : 400 }}>
-                  {optionLabel?.[o] || o}
+                  {effectiveOptionLabel?.[o] || o}
                 </div>
                 {optionMeta?.[o] && (
                   <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{optionMeta[o]}</div>
@@ -737,8 +777,10 @@ export const SearchableSelect: React.FC<{
               </div>
             </button>
           ))}
-          {filtered.length === 0 && (
-            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>No results.</div>
+          {!remoteLoading && filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: tokens.font.small, color: tokens.color.text }}>
+              {onSearch && !search ? 'Type to search...' : 'No results.'}
+            </div>
           )}
         </div>
       )}
