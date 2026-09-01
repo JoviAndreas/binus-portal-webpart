@@ -17,6 +17,7 @@ export interface IBinusPagesProps {
   agentResourceUri: string;
   aadClientFactory: { getClient: (resource: string) => Promise<AadHttpClient> };
   webUrl: string;
+  currentUserEmail: string;
 }
 
 type Mode = 'simple' | 'advanced';
@@ -578,6 +579,7 @@ export const BinusPages: React.FC<IBinusPagesProps> = (props) => {
           api={api}
           agentApi={agentApi}
           webUrl={props.webUrl}
+          currentUserEmail={props.currentUserEmail}
           onClose={() => setSelected(null)}
         />
       )}

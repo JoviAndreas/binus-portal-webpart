@@ -35,7 +35,8 @@ export default class BinusPagesWebPart extends BaseClientSideWebPart<IBinusPages
       agentBaseUrl: this.properties.agentBaseUrl || 'https://binuspages-api.apps.binus.edu/api',
       agentResourceUri: this.properties.agentResourceUri || 'api://bf54af47-f3d8-4533-a392-711c1d04cdea',
       aadClientFactory: this.context.aadHttpClientFactory,
-      webUrl: this.context.pageContext.web.absoluteUrl
+      webUrl: this.context.pageContext.web.absoluteUrl,
+      currentUserEmail: this.context.pageContext.user.email
     });
     ReactDom.render(element, this.domElement);
   }

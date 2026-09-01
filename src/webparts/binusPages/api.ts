@@ -92,6 +92,28 @@ export interface IKnowledgeItems {
   explicit: IExplicitKnowledgeItem[];
 }
 
+export interface IManualPaper {
+  id: string;
+  title: string;
+  authors?: string;
+  year?: number;
+  paperType?: string;
+  venue?: string;
+  doiOrUrl?: string;
+  abstract?: string;
+}
+
+export interface ICreateManualPaper {
+  binusianId: string;
+  title: string;
+  authors?: string;
+  year?: number;
+  paperType?: string;
+  venue?: string;
+  doiOrUrl?: string;
+  abstract?: string;
+}
+
 export interface IEmployeeDetail { [k: string]: unknown }
 export interface IEmployeeTraining { [k: string]: unknown }
 export interface IResearchPaper { [k: string]: unknown }
@@ -158,6 +180,17 @@ export class BinusPagesApi {
     const r: HttpClientResponse = await c.get(url, AadHttpClient.configurations.v1);
     if (!r.ok) return null;
     return (await r.json()) as T;
+  }
+
+  private async postJson<T>(path: string, body: unknown): Promise<{ ok: boolean; status: number; data: T | null }> {
+    const url = `${this.apiBase.replace(/\/$/, '')}${path}`;
+    const c = await this.getClient();
+    const r: HttpClientResponse = await c.post(url, AadHttpClient.configurations.v1, {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = r.ok ? ((await r.json()) as T) : null;
+    return { ok: r.ok, status: r.status, data };
   }
 
   search(q: string): Promise<ISearchHit[] | null> {
@@ -230,6 +263,15 @@ export class BinusPagesApi {
     return this.getJson<IEmployeeTraining[]>(
       `/EmployeeTrainings?binusianid=${encodeURIComponent(binusianid)}&nip=${encodeURIComponent(nip)}`
     );
+  }
+
+  manualPapers(binusianId: string): Promise<IManualPaper[] | null> {
+    if (!binusianId) return Promise.resolve(null);
+    return this.getJson<IManualPaper[]>(`/ManualPapers?binusianId=${encodeURIComponent(binusianId)}`);
+  }
+
+  addManualPaper(p: ICreateManualPaper): Promise<{ ok: boolean; status: number; data: IManualPaper | null }> {
+    return this.postJson<IManualPaper>('/ManualPapers', p);
   }
 
   researchPapers(kdDosen: string): Promise<IResearchPaper[] | null> {

@@ -4,13 +4,14 @@ import { Shimmer } from '../../../shared/LoadingFX';
 import { Icon } from '../../../shared/Icon';
 import { PersonAvatar } from './PersonAvatar';
 import { QuickActions } from './QuickActions';
-import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile, IKnowledgeItems, ILecturerScholar } from '../api';
+import { BinusPagesApi, ISearchHit, IEmployeeDetail, IEmployeeTraining, IResearchPaper, IOrgPerson, IKnowledgeProfile, IKnowledgeItems, ILecturerScholar, IManualPaper } from '../api';
 
 export interface IPersonDrawerProps {
   hit: ISearchHit;
   api: BinusPagesApi;
   agentApi: BinusPagesApi;
   webUrl: string;
+  currentUserEmail: string;
   onClose: () => void;
 }
 
@@ -263,7 +264,220 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'scholar', label: 'Binus Scholar' }
 ];
 
-export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi, webUrl, onClose }) => {
+const modalInputStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  border: `1px solid ${tokens.color.border}`,
+  borderRadius: tokens.radius.sm,
+  background: tokens.color.bg,
+  fontSize: 13,
+  outline: 'none',
+  fontFamily: tokens.font.family,
+  color: tokens.color.textDark,
+  width: '100%',
+  boxSizing: 'border-box'
+};
+
+const modalLabelStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: tokens.color.text,
+  marginBottom: 4,
+  display: 'block',
+  fontWeight: 600
+};
+
+const modalButtonStyle = (primary: boolean): React.CSSProperties => ({
+  border: primary ? 'none' : `1px solid ${tokens.color.border}`,
+  background: primary ? tokens.color.blue : 'transparent',
+  color: primary ? '#fff' : tokens.color.textDark,
+  fontSize: 13,
+  fontWeight: 700,
+  borderRadius: tokens.radius.sm,
+  padding: '8px 16px',
+  cursor: 'pointer'
+});
+
+const AddPaperModal: React.FC<{
+  binusianId: string;
+  api: BinusPagesApi;
+  onClose: () => void;
+  onSaved: () => void;
+}> = ({ binusianId, api, onClose, onSaved }) => {
+  const [title, setTitle] = React.useState('');
+  const [authors, setAuthors] = React.useState('');
+  const [year, setYear] = React.useState('');
+  const [paperType, setPaperType] = React.useState('Journal');
+  const [venue, setVenue] = React.useState('');
+  const [doiOrUrl, setDoiOrUrl] = React.useState('');
+  const [abstractText, setAbstractText] = React.useState('');
+  const [evidenceFile, setEvidenceFile] = React.useState<File | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const canSave = title.trim().length > 0 && !saving;
+
+  const handleSave = async (): Promise<void> => {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+    const res = await api.addManualPaper({
+      binusianId,
+      title: title.trim(),
+      authors: authors.trim() || undefined,
+      year: year.trim() ? Number(year.trim()) : undefined,
+      paperType: paperType || undefined,
+      venue: venue.trim() || undefined,
+      doiOrUrl: doiOrUrl.trim() || undefined,
+      abstract: abstractText.trim() || undefined
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setError(res.status === 403 ? 'You can only add papers to your own profile.' : 'Failed to save. Try again.');
+      return;
+    }
+    onSaved();
+    onClose();
+  };
+
+  return (
+    <>
+      <div style={{ ...styles.scrim, zIndex: 200 }} onClick={onClose} />
+      <div
+        role="dialog"
+        aria-label="Tambah Paper"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(520px, calc(100vw - 48px))',
+          maxHeight: 'calc(100vh - 96px)',
+          overflowY: 'auto',
+          background: tokens.color.bg,
+          borderRadius: tokens.radius.sm,
+          boxShadow: '0 24px 64px rgba(2,74,122,.28)',
+          zIndex: 201,
+          fontFamily: tokens.font.family,
+          animation: 'bp-fade-up .25s cubic-bezier(.2,.7,.2,1) both'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: `1px solid ${tokens.color.borderSoft}` }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: tokens.color.textDark }}>Tambah Paper</span>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: tokens.color.text, padding: 4 }}
+            aria-label="Close"
+          >
+            <Icon name="arrowRight" size={16} />
+          </button>
+        </div>
+
+        <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={modalLabelStyle}>Title *</label>
+            <input style={modalInputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Paper title" />
+          </div>
+
+          <div>
+            <label style={modalLabelStyle}>Authors</label>
+            <input
+              style={modalInputStyle}
+              value={authors}
+              onChange={(e) => setAuthors(e.target.value)}
+              placeholder="J Andreas, D Fitrianah"
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={modalLabelStyle}>Year</label>
+              <input
+                style={modalInputStyle}
+                value={year}
+                onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                placeholder="2026"
+                inputMode="numeric"
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={modalLabelStyle}>Type</label>
+              <select style={modalInputStyle} value={paperType} onChange={(e) => setPaperType(e.target.value)}>
+                <option value="Journal">Journal</option>
+                <option value="Conference">Conference</option>
+                <option value="Book Chapter">Book Chapter</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={modalLabelStyle}>Venue / Journal name</label>
+            <input style={modalInputStyle} value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="Journal or conference proceedings" />
+          </div>
+
+          <div>
+            <label style={modalLabelStyle}>DOI or URL</label>
+            <input style={modalInputStyle} value={doiOrUrl} onChange={(e) => setDoiOrUrl(e.target.value)} placeholder="https://doi.org/..." />
+          </div>
+
+          <div>
+            <label style={modalLabelStyle}>Abstract (optional)</label>
+            <textarea
+              style={{ ...modalInputStyle, minHeight: 72, resize: 'vertical', fontFamily: tokens.font.family }}
+              value={abstractText}
+              onChange={(e) => setAbstractText(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label style={modalLabelStyle}>Evidence (optional)</label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '14px 12px',
+                border: `1px dashed ${tokens.color.border}`,
+                borderRadius: tokens.radius.sm,
+                background: tokens.color.bg,
+                fontSize: 12,
+                color: tokens.color.text,
+                cursor: 'pointer'
+              }}
+            >
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                onChange={(e) => setEvidenceFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+              />
+              <span>{evidenceFile ? evidenceFile.name : 'Upload PDF or screenshot as proof (e.g. publisher page, certificate)'}</span>
+            </label>
+          </div>
+
+          {error && <div style={{ fontSize: 12, color: '#c62828' }}>{error}</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" onClick={onClose} style={modalButtonStyle(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={!canSave}
+              style={{ ...modalButtonStyle(true), opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'default' }}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi, webUrl, currentUserEmail, onClose }) => {
   const [detail, setDetail] = React.useState<IEmployeeDetail[] | null | undefined>(undefined);
   const [trainings, setTrainings] = React.useState<IEmployeeTraining[] | null | undefined>(undefined);
   const [papers, setPapers] = React.useState<IResearchPaper[] | null | undefined>(undefined);
@@ -271,7 +485,21 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
   const [kmap, setKmap] = React.useState<IKnowledgeProfile | null | undefined>(undefined);
   const [knowledgeItems, setKnowledgeItems] = React.useState<IKnowledgeItems | null | undefined>(undefined);
   const [scholar, setScholar] = React.useState<ILecturerScholar | null | undefined>(undefined);
+  const [manualPapers, setManualPapers] = React.useState<IManualPaper[] | null | undefined>(undefined);
+  const [showAddPaper, setShowAddPaper] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<TabKey>('profile');
+
+  const isOwnProfile = !!hit.email && !!currentUserEmail && hit.email.toLowerCase() === currentUserEmail.toLowerCase();
+
+  const reloadManualPapers = React.useCallback(() => {
+    if (!hit.binusianId) return;
+    void api.manualPapers(hit.binusianId).then(setManualPapers);
+  }, [api, hit.binusianId]);
+
+  React.useEffect(() => {
+    if (activeTab !== 'papers' || manualPapers !== undefined) return;
+    reloadManualPapers();
+  }, [activeTab, manualPapers, reloadManualPapers]);
 
   React.useEffect(() => {
     const id = hit.binusianId || '';
@@ -500,12 +728,69 @@ export const PersonDrawer: React.FC<IPersonDrawerProps> = ({ hit, api, agentApi,
 
         {activeTab === 'papers' && (
           <section style={styles.section}>
-            <div style={styles.sectionTitle}>Research papers</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={styles.sectionTitle}>Research papers</div>
+              {isOwnProfile && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddPaper(true)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: tokens.color.blue,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '2px 0'
+                  }}
+                >
+                  + Tambah
+                </button>
+              )}
+            </div>
             {papers === undefined && <Shimmer height={50} />}
             {papers === null && <div style={styles.empty}>Not available.</div>}
-            {papers && papers.length === 0 && <div style={styles.empty}>No research papers found.</div>}
+            {papers && papers.length === 0 && manualPapers && manualPapers.length === 0 && (
+              <div style={styles.empty}>No research papers found.</div>
+            )}
             {papers && papers.slice(0, 50).map((p, i) => <PaperItem key={i} data={p as { [k: string]: unknown }} index={i} />)}
+
+            {manualPapers && manualPapers.length > 0 && (
+              <>
+                <div style={{ ...styles.sectionTitle, marginTop: 20 }}>Added manually</div>
+                {manualPapers.map((p) => (
+                  <div key={p.id} style={styles.listItem}>
+                    <div style={{ fontWeight: 600 }}>{p.title}</div>
+                    {(p.year || p.paperType) && (
+                      <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 4 }}>
+                        {[p.year ? String(p.year) : '', p.paperType].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                    {p.venue && <div style={{ fontSize: 11, color: tokens.color.text, marginTop: 2 }}>{p.venue}</div>}
+                    {p.authors && (
+                      <div style={{ fontSize: 10, color: tokens.color.text, marginTop: 4, opacity: 0.85 }}>{p.authors}</div>
+                    )}
+                    {p.doiOrUrl && (
+                      <div style={{ marginTop: 6 }}>
+                        <a href={p.doiOrUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: tokens.color.blue }}>
+                          {p.doiOrUrl}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </section>
+        )}
+
+        {showAddPaper && hit.binusianId && (
+          <AddPaperModal
+            binusianId={hit.binusianId}
+            api={api}
+            onClose={() => setShowAddPaper(false)}
+            onSaved={reloadManualPapers}
+          />
         )}
 
         {activeTab === 'trainings' && (
