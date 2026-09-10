@@ -57,9 +57,9 @@ const td: React.CSSProperties = {
 
 
 export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors, onTotalChange }) => {
-  const isSupervisor = me.IsSupervisor;
+  const isAdmin = me.IsAdmin;
   const canEdit = me.IsAdmin || me.IsEditor;
-  const defaultChip: FilterChip = (me.IsEditor || isSupervisor) ? 'myqueue' : 'allactive';
+  const defaultChip: FilterChip = (me.IsEditor || isAdmin) ? 'myqueue' : 'allactive';
   const isLecturer = !!me.Email?.toLowerCase().endsWith('@binus.ac.id');
 
   const [chip, setChip] = React.useState<FilterChip>(defaultChip);
@@ -121,7 +121,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   // Intercept: open drawer while rows selected
   const [openIntercept, setOpenIntercept] = React.useState<string | null>(null);
 
-  // Bulk selection (supervisor only)
+  // Bulk selection (admin only)
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [bulkPicVal, setBulkPicVal] = React.useState('');
   const [bulkStatusVal, setBulkStatusVal] = React.useState('');
@@ -256,7 +256,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setPendingRejected((prev) => { const n = { ...prev }; delete n[id]; return n; });
   };
 
-  // Selection helpers (supervisor only)
+  // Selection helpers (admin only)
   const lastClickedRef = React.useRef<string | null>(null);
   const toggleSelect = (id: string): void => {
     setSelected((prev) => {
@@ -297,14 +297,19 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     }
     return false;
   };
+  const canSelectRow = (s: ISubmission): boolean =>
+    isAdmin || (canEdit && !!me.Email && (s.PicEditing || '').toLowerCase() === me.Email.toLowerCase());
   const onRowClick = (e: React.MouseEvent, id: string): void => {
-    if (!isSupervisor) return;
+    if (!canEdit) return;
+    const row = items.find((s) => s.Id === id);
+    if (!row || !canSelectRow(row)) return;
     if (isInlineControl(e.target)) return;
     e.preventDefault();
     if (e.shiftKey) rangeSelect(id); else toggleSelect(id);
   };
+  const selectableItems = React.useMemo(() => items.filter(canSelectRow), [items, isAdmin, canEdit, me.Email]);
   const toggleSelectAll = (): void => {
-    setSelected((prev) => prev.size === items.length ? new Set() : new Set(items.map((s) => s.Id)));
+    setSelected((prev) => prev.size === selectableItems.length && selectableItems.length > 0 ? new Set() : new Set(selectableItems.map((s) => s.Id)));
   };
 
   // Bulk apply
@@ -409,8 +414,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       </div>
     );
   };
-  const showPicCol = isSupervisor || canEdit;
-  const colCount = isSupervisor ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9);
+  const showPicCol = isAdmin || canEdit;
+  const colCount = isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9);
 
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
@@ -546,8 +551,8 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
 
       {error && <MessageBar kind="error">{error}</MessageBar>}
 
-      {/* Bulk bar (supervisor only, always visible; actions disabled when no selection) */}
-      {isSupervisor && (
+      {/* Bulk bar (editor+admin; PicEditing reassign is admin-only, always visible; actions disabled when no selection) */}
+      {canEdit && (
         <div
           style={{
             position: 'sticky',
@@ -566,7 +571,9 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           <span style={{ fontSize: tokens.font.small, color: '#fff', fontWeight: 700, marginRight: 4, whiteSpace: 'nowrap' }}>
             {selected.size > 0 ? `${selected.size} selected` : 'Select rows to bulk edit'}
           </span>
-          <PicCombo value={bulkPicVal} editors={editors} onChange={(v) => setBulkPicVal(v)} disabled={selected.size === 0} />
+          {isAdmin && (
+            <PicCombo value={bulkPicVal} editors={editors} onChange={(v) => setBulkPicVal(v)} disabled={selected.size === 0} />
+          )}
           <StatusCombo value={bulkStatusVal} onChange={(v) => { setBulkStatusVal(v); setBulkRejectNote(''); }} disabled={selected.size === 0} placeholder="Status..." />
           {bulkStatusVal === 'Rejected' && (
             <input
@@ -658,14 +665,14 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isSupervisor ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150) }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150) }}>
           <thead>
             <tr>
-              {isSupervisor && (
+              {canEdit && (
                 <th style={{ ...th, width: 36 }}>
                   <input
                     type="checkbox"
-                    checked={selected.size === items.length && items.length > 0}
+                    checked={selected.size === selectableItems.length && selectableItems.length > 0}
                     onChange={toggleSelectAll}
                     style={{ cursor: 'pointer' }}
                   />
@@ -692,7 +699,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               });
               return (
                 <tr key={i} style={{ background: i % 2 === 0 ? undefined : tokens.color.surfaceAlt }}>
-                  {isSupervisor && <td style={td}><div style={sk(16)} /></td>}
+                  {canEdit && <td style={td}><div style={sk(16)} /></td>}
                   <td style={td}><div style={sk(72)} /></td>
                   <td style={td}><div style={sk(110)} /></td>
                   <td style={td}><div style={sk(150)} /></td>
@@ -721,19 +728,20 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                   <tr
                     style={{
                       background: rowErr ? tokens.color.dangerBg : (selected.has(s.Id) ? tokens.color.tint : undefined),
-                      cursor: isSupervisor ? 'pointer' : 'default',
-                      userSelect: isSupervisor ? 'none' : undefined
+                      cursor: canEdit && canSelectRow(s) ? 'pointer' : 'default',
+                      userSelect: canEdit && canSelectRow(s) ? 'none' : undefined
                     }}
                     onClick={(e) => onRowClick(e, s.Id)}
                   >
-                    {isSupervisor && (
+                    {canEdit && (
                       <td style={{ ...td, padding: '9px 10px' }}>
                         <input
                           type="checkbox"
                           checked={selected.has(s.Id)}
+                          disabled={!canSelectRow(s)}
                           onChange={(e) => { e.stopPropagation(); toggleSelect(s.Id); }}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer' }}
+                          style={{ cursor: canSelectRow(s) ? 'pointer' : 'not-allowed' }}
                         />
                       </td>
                     )}
@@ -816,7 +824,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                           value={val(s, 'PicEditing') as string}
                           editors={editors}
                           onChange={(email) => optimisticPatch(s.Id, { PicEditing: email })}
-                          disabled={!isSupervisor}
+                          disabled={!isAdmin}
                         />
                       </td>
                     )}

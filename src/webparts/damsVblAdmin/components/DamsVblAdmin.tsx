@@ -22,10 +22,9 @@ type Tab = 'review' | 'upload' | 'data';
 const TAB_LABELS: Record<Tab, string> = { review: 'Review', upload: 'Upload', data: 'Data' };
 
 function roleLabel(me: IMeInfo): { text: string; bg: string; fg: string } {
-  if (me.IsAdmin)      return { text: 'Admin',      bg: '#FEE9D1', fg: '#9A4800' };
-  if (me.IsEditor)     return { text: 'Editor',     bg: tokens.color.tint, fg: tokens.color.blueDark };
-  if (me.IsSupervisor) return { text: 'Supervisor', bg: '#EEE7FF', fg: '#5B21B6' };
-  return                      { text: 'Viewer',     bg: tokens.color.bgSoft, fg: tokens.color.text };
+  if (me.IsAdmin)  return { text: 'Admin',  bg: '#FEE9D1', fg: '#9A4800' };
+  if (me.IsEditor) return { text: 'Editor', bg: tokens.color.tint, fg: tokens.color.blueDark };
+  return                  { text: 'Viewer', bg: tokens.color.bgSoft, fg: tokens.color.text };
 }
 
 export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiResourceUri, aadClientFactory, links = [] }) => {
@@ -66,7 +65,7 @@ export const DamsVblAdmin: React.FC<IDamsVblAdminProps> = ({ apiBaseUrl, apiReso
         setMe(m);
         setEditors(edList || []);
 
-        const isPrivileged = !!(m && (m.IsAdmin || m.IsEditor || m.IsSupervisor));
+        const isPrivileged = !!(m && (m.IsAdmin || m.IsEditor));
         const qsTab = new URLSearchParams(window.location.search).get('tab') as Tab | null;
         if (!qsTab) setTab(isPrivileged ? 'review' : 'upload');
 

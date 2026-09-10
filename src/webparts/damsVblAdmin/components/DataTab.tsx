@@ -183,7 +183,7 @@ const LookupSection: React.FC<ILookupSectionProps> = ({ title, category, api }) 
   );
 };
 
-type EditorItem = { id: number; email: string; name: string | null; jabatan: string | null };
+type EditorItem = { id: number; email: string; name: string | null; jabatan: string | null; isAdmin: boolean };
 
 interface IEditorsSectionProps {
   api: DamsApi;
@@ -196,11 +196,13 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
   const [addEmail, setAddEmail] = React.useState('');
   const [addName, setAddName] = React.useState('');
   const [addJabatan, setAddJabatan] = React.useState('');
+  const [addIsAdmin, setAddIsAdmin] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [editEmail, setEditEmail] = React.useState('');
   const [editName, setEditName] = React.useState('');
   const [editJabatan, setEditJabatan] = React.useState('');
+  const [editIsAdmin, setEditIsAdmin] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [confirmDelete, setConfirmDelete] = React.useState<{ id: number; label: string } | null>(null);
@@ -228,11 +230,12 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
     setAdding(true);
     setError('');
     try {
-      const added = await api.addEditor(email, addName.trim(), addJabatan.trim());
+      const added = await api.addEditor(email, addName.trim(), addJabatan.trim(), addIsAdmin);
       if (added) setItems((prev) => [...prev, added].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)));
       setAddEmail('');
       setAddName('');
       setAddJabatan('');
+      setAddIsAdmin(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -245,6 +248,7 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
     setEditEmail(item.email);
     setEditName(item.name || '');
     setEditJabatan(item.jabatan || '');
+    setEditIsAdmin(item.isAdmin);
     setError('');
   };
 
@@ -255,8 +259,8 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
     setSaving(true);
     setError('');
     try {
-      await api.renameEditor(editId, email, editName.trim(), editJabatan.trim());
-      setItems((prev) => prev.map((i) => i.id === editId ? { ...i, email, name: editName.trim(), jabatan: editJabatan.trim() } : i));
+      await api.renameEditor(editId, email, editName.trim(), editJabatan.trim(), editIsAdmin);
+      setItems((prev) => prev.map((i) => i.id === editId ? { ...i, email, name: editName.trim(), jabatan: editJabatan.trim(), isAdmin: editIsAdmin } : i));
       setEditId(null);
     } catch (e) {
       setError((e as Error).message);
@@ -313,6 +317,10 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
                 <input type="text" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email" style={{ flex: 2, padding: '4px 8px', fontSize: tokens.font.small, border: `1px solid ${tokens.color.blue}`, borderRadius: tokens.radius.sm, fontFamily: tokens.font.family, outline: 'none' }} />
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="name" style={{ flex: 2, padding: '4px 8px', fontSize: tokens.font.small, border: `1px solid ${tokens.color.blue}`, borderRadius: tokens.radius.sm, fontFamily: tokens.font.family, outline: 'none' }} />
                 <input type="text" value={editJabatan} onChange={(e) => setEditJabatan(e.target.value)} placeholder="jabatan" style={{ flex: 2, padding: '4px 8px', fontSize: tokens.font.small, border: `1px solid ${tokens.color.blue}`, borderRadius: tokens.radius.sm, fontFamily: tokens.font.family, outline: 'none' }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: tokens.font.label, color: tokens.color.text, whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={editIsAdmin} onChange={(e) => setEditIsAdmin(e.target.checked)} />
+                  Admin
+                </label>
                 <GhostButton type="button" disabled={saving} onClick={() => void doSave()} style={{ padding: '4px 10px', fontSize: tokens.font.label }}>Save</GhostButton>
                 <GhostButton type="button" onClick={() => setEditId(null)} style={{ padding: '4px 10px', fontSize: tokens.font.label }}>Cancel</GhostButton>
               </>
@@ -322,6 +330,9 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
                   {item.name || item.email}
                   {item.name && <span style={{ color: tokens.color.text }}> · {item.email}</span>}
                   {item.jabatan && <span style={{ color: tokens.color.text }}> · {item.jabatan}</span>}
+                  {item.isAdmin && (
+                    <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: tokens.radius.sm, fontSize: tokens.font.label, background: '#FEE9D1', color: '#9A4800', fontWeight: 700 }}>Admin</span>
+                  )}
                 </span>
                 <button type="button" onClick={() => startEdit(item)} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.blue, fontSize: tokens.font.label, padding: '2px 6px', borderRadius: tokens.radius.sm }}>Edit</button>
                 <button type="button" onClick={() => setConfirmDelete({ id: item.id, label: item.name || item.email })} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.danger, fontSize: tokens.font.label, padding: '2px 6px', borderRadius: tokens.radius.sm }}>Del</button>
@@ -335,6 +346,10 @@ const EditorsSection: React.FC<IEditorsSectionProps> = ({ api }) => {
         <TextInput value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="email@binus.edu" style={{ flex: 2 }} />
         <TextInput value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name (optional)" style={{ flex: 2 }} />
         <TextInput value={addJabatan} onChange={(e) => setAddJabatan(e.target.value)} placeholder="Jabatan (optional)" style={{ flex: 2 }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: tokens.font.small, color: tokens.color.text, whiteSpace: 'nowrap' }}>
+          <input type="checkbox" checked={addIsAdmin} onChange={(e) => setAddIsAdmin(e.target.checked)} />
+          Admin
+        </label>
         <PrimaryButton type="button" disabled={adding || !addEmail.trim()} onClick={() => void doAdd()}>
           {adding ? 'Adding...' : 'Add'}
         </PrimaryButton>

@@ -284,33 +284,33 @@ export class DamsApi {
     if (!r.ok) throw new Error(`Delete failed: ${r.status}`);
   }
 
-  public async getEditors(): Promise<{ id: number; email: string; name: string | null; jabatan: string | null }[] | null> {
-    const res = await this.getJson<{ Id: number; Email: string; Name: string | null; Jabatan: string | null }[]>('/Editors');
+  public async getEditors(): Promise<{ id: number; email: string; name: string | null; jabatan: string | null; isAdmin: boolean }[] | null> {
+    const res = await this.getJson<{ Id: number; Email: string; Name: string | null; Jabatan: string | null; IsAdmin: boolean }[]>('/Editors');
     if (!res) return null;
-    return res.map((r) => ({ id: r.Id, email: r.Email, name: r.Name, jabatan: r.Jabatan }));
+    return res.map((r) => ({ id: r.Id, email: r.Email, name: r.Name, jabatan: r.Jabatan, isAdmin: r.IsAdmin }));
   }
 
-  public async addEditor(email: string, name: string, jabatan: string): Promise<{ id: number; email: string; name: string | null; jabatan: string | null } | null> {
+  public async addEditor(email: string, name: string, jabatan: string, isAdmin: boolean): Promise<{ id: number; email: string; name: string | null; jabatan: string | null; isAdmin: boolean } | null> {
     const c = await this.getClient();
     const r = await c.fetch(this.url('/Editors'), AadHttpClient.configurations.v1, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, jabatan }),
+      body: JSON.stringify({ email, name, jabatan, isAdmin }),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(err.error || `Add failed: ${r.status}`);
     }
-    const added = await r.json() as { Id: number; Email: string; Name: string | null; Jabatan: string | null };
-    return { id: added.Id, email: added.Email, name: added.Name, jabatan: added.Jabatan };
+    const added = await r.json() as { Id: number; Email: string; Name: string | null; Jabatan: string | null; IsAdmin: boolean };
+    return { id: added.Id, email: added.Email, name: added.Name, jabatan: added.Jabatan, isAdmin: added.IsAdmin };
   }
 
-  public async renameEditor(id: number, email: string, name: string, jabatan: string): Promise<void> {
+  public async renameEditor(id: number, email: string, name: string, jabatan: string, isAdmin: boolean): Promise<void> {
     const c = await this.getClient();
     const r = await c.fetch(this.url(`/Editors/${id}`), AadHttpClient.configurations.v1, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, jabatan }),
+      body: JSON.stringify({ email, name, jabatan, isAdmin }),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({})) as { error?: string };

@@ -24,7 +24,6 @@ export interface IMeInfo {
   Name: string | null;
   IsAdmin: boolean;
   IsEditor: boolean;
-  IsSupervisor: boolean;
 }
 
 export interface IEditorInfo {
