@@ -289,7 +289,7 @@ export class DamsApi {
   }
 
   public async getEditors(): Promise<{ id: number; email: string; name: string | null; jabatan: string | null; isAdmin: boolean }[] | null> {
-    const res = await this.getJson<{ Id: number; Email: string; Name: string | null; Jabatan: string | null; IsAdmin: boolean }[]>('/Editors');
+    const res = await this.listEditors();
     if (!res) return null;
     return res.map((r) => ({ id: r.Id, email: r.Email, name: r.Name, jabatan: r.Jabatan, isAdmin: r.IsAdmin }));
   }

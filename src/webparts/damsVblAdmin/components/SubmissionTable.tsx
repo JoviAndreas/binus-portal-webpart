@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { tokens } from '../../../shared/tokens';
 import { DamsApi } from '../../../shared/damsApi';
-import { ISubmission, IEditorInfo, IMeInfo, ISubmissionPatch, STATUS_VALUES } from '../../../shared/damsTypes';
+import { ISubmissionListItem, IEditorInfo, IMeInfo, ISubmissionPatch, STATUS_VALUES } from '../../../shared/damsTypes';
 import {
   StatusCombo,
   SearchableSelect,
@@ -145,7 +145,7 @@ const PreviewCell: React.FC<{
 };
 
 const VIDEO_EXT = /\.(mp4|mov|m4v|mkv|avi|wmv|webm|mpg|mpeg)$/i;
-const isDocumentRow = (s: ISubmission): boolean => !!s.FileName && !VIDEO_EXT.test(s.FileName.trim());
+const isDocumentRow = (s: ISubmissionListItem): boolean => !!s.FileName && !VIDEO_EXT.test(s.FileName.trim());
 
 export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors, onTotalChange }) => {
   const isAdmin = me.IsAdmin;
@@ -211,14 +211,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
 
   const reqIdRef = React.useRef(0);
-  const [items, setItems] = React.useState<ISubmission[]>([]);
+  const [items, setItems] = React.useState<ISubmissionListItem[]>([]);
   const [total, setTotal] = React.useState(0);
   React.useEffect(() => { onTotalChange?.(total); }, [total, onTotalChange]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
 
   // Optimistic local overrides per row
-  const [localOverrides, setLocalOverrides] = React.useState<Record<string, Partial<ISubmission>>>({});
+  const [localOverrides, setLocalOverrides] = React.useState<Record<string, Partial<ISubmissionListItem>>>({});
   // Per-row inline error flash
   const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({});
   // Per-row "Copied!" flash after copying the DAMS link
@@ -305,7 +305,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   // Optimistic patch helper
   const optimisticPatch = (id: string, patch: ISubmissionPatch): void => {
     // Apply locally
-    setLocalOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...(patch as Partial<ISubmission>) } }));
+    setLocalOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...(patch as Partial<ISubmissionListItem>) } }));
     setRowErrors((prev) => { const n = { ...prev }; delete n[id]; return n; });
 
     api.patchSubmission(id, patch).then((res) => {
@@ -400,7 +400,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     }
     return false;
   };
-  const canSelectRow = (s: ISubmission): boolean =>
+  const canSelectRow = (s: ISubmissionListItem): boolean =>
     isAdmin || (canEdit && !!me.Email && (s.PicEditing || '').toLowerCase() === me.Email.toLowerCase());
   const onRowClick = (e: React.MouseEvent, id: string): void => {
     if (!canEdit) return;
@@ -592,14 +592,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     if (n <= 3) return tokens.color.orange;
     return '#16a34a';
   };
-const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
+const K_FIELDS: (keyof ISubmissionListItem)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
 const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', KualitasAudio: 'KA', KualitasKonten: 'KK' };
 
   // Display value helpers (merge server state with local override)
-  const val = <K extends keyof ISubmission>(s: ISubmission, k: K): ISubmission[K] =>
-    (localOverrides[s.Id]?.[k] !== undefined ? localOverrides[s.Id]![k] : s[k]) as ISubmission[K];
+  const val = <K extends keyof ISubmissionListItem>(s: ISubmissionListItem, k: K): ISubmissionListItem[K] =>
+    (localOverrides[s.Id]?.[k] !== undefined ? localOverrides[s.Id]![k] : s[k]) as ISubmissionListItem[K];
 
-  const displayStatus = (s: ISubmission): string =>
+  const displayStatus = (s: ISubmissionListItem): string =>
     pendingRejected[s.Id] !== undefined ? 'Rejected' : (val(s, 'Status') as string) || 'Pending';
 
   return (

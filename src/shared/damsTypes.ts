@@ -4,7 +4,9 @@ export type SubmissionStatus =
   | 'Pending'
   | 'InReview'
   | 'Approved'
-  | 'Rejected';
+  | 'Rejected'
+  | 'NeedsEdit'
+  | 'Published';
 
 export const STATUS_VALUES: SubmissionStatus[] = [
   'Pending',
@@ -27,66 +29,75 @@ export interface IMeInfo {
 }
 
 export interface IEditorInfo {
+  Id: number;
   Email: string;
-  Name: string;
-  Jabatan: string;
+  Name: string | null;
+  Jabatan: string | null;
+  IsAdmin: boolean;
 }
 
 export interface IBinusianInfo {
-  KodeDosen?: string;
-  Email?: string;
-  Name?: string;
-  Campus?: string;
-  AcadGroupDesc?: string;
-  AcadOrgDesc?: string;
-  DepartmentDesc?: string;
-  TipeDosen?: string;
+  KodeDosen?: string | null;
+  Email?: string | null;
+  Name?: string | null;
+  Campus?: string | null;
+  AcadGroupDesc?: string | null;
+  AcadOrgDesc?: string | null;
+  DepartmentDesc?: string | null;
+  TipeDosen?: string | null;
 }
 
-export interface ISubmission {
+// Row returned by GET /Submissions (VideoSubmissionListDto). Nullable fields arrive as explicit null.
+export interface ISubmissionListItem {
   Id: string;
-  AssetType?: string;
-  CodeNumber?: string;
-  AutoNumber?: number;
-  SubmissionTime?: string;
-  Email?: string;
-  Name?: string;
-  KodeDosen?: string;
-  Kampus?: string;
-  Fakultas?: string;
-  Jurusan?: string;
-  KodeMatakuliah?: string;
-  NamaMatakuliah?: string;
-  Topik?: string;
-  Week?: string;
-  Session?: string;
-  FileName?: string;
-  FileType?: string;
-  Category?: string;
-  Description?: string;
-  Tags?: string;
-  LinkDamsShare?: string;
-  LinkVideoFromLecturer?: string;
-  ButuhEdit?: boolean;
-  PicEditing?: string;
-  Qc?: string;
-  StatusAdaBumper?: string;
-  KualitasVideo?: string;
-  KualitasAudio?: string;
-  KualitasKonten?: string;
-  Status?: SubmissionStatus;
-  ReviewedBy?: string;
-  ReviewedAt?: string;
-  ReviewNote?: string;
+  CodeNumber: string | null;
+  SubmissionTime: string | null;
+  Email: string | null;
+  Name: string | null;
+  KodeDosen: string | null;
+  Fakultas: string | null;
+  Jurusan: string | null;
+  KodeMatakuliah: string | null;
+  Topik: string | null;
+  Week: string | null;
+  Session: string | null;
+  PicEditing: string | null;
+  KualitasVideo: string | null;
+  KualitasAudio: string | null;
+  KualitasKonten: string | null;
+  Status: string | null;
+  LinkDamsShare: string | null;
+  LinkVideoFromLecturer: string | null;
+  // Not returned by the list endpoint yet; present only on the full record.
+  FileName?: string | null;
+}
+
+// Full record returned by GET /Submissions/{id}.
+export interface ISubmission extends ISubmissionListItem {
+  AssetType: string | null;
+  AutoNumber: number;
+  Kampus: string | null;
+  NamaMatakuliah: string | null;
+  FileName: string | null;
+  FileType: string | null;
+  Category: string | null;
+  Description: string | null;
+  Tags: string | null;
+  ButuhEdit: boolean | null;
+  Qc: string | null;
+  StatusAdaBumper: string | null;
+  ReviewedBy: string | null;
+  ReviewedAt: string | null;
+  ReviewNote: string | null;
 }
 
 export interface IStatusHistory {
   Id: number;
   SubmissionId: string;
-  FromStatus?: string;
+  FromStatus: string | null;
   ToStatus: string;
   ActorEmail: string;
-  Note?: string;
+  Note: string | null;
   At: string;
 }
 
@@ -115,7 +126,7 @@ export interface IListResult {
   total: number;
   page: number;
   pageSize: number;
-  items: ISubmission[];
+  items: ISubmissionListItem[];
 }
 
 export interface IListFilter {
