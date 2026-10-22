@@ -100,6 +100,10 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
+  public getThumbs(ids: string[]): Promise<Record<string, Record<string, string>> | null> {
+    return this.getJson(`/Submissions/thumbs?ids=${ids.map(encodeURIComponent).join(',')}`);
+  }
+
   public searchMatakuliah(q: string, signal?: AbortSignal): Promise<{ KodeMatakuliah: string; NamaMatakuliah: string | null; RumpunIlmu: string | null; Count: number }[] | null> {
     return this.getJson(`/Submissions/matakuliah?q=${encodeURIComponent(q)}`, signal);
   }

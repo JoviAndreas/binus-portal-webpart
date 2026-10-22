@@ -82,7 +82,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const [fakultasFilter, setFakultasFilter] = React.useState('');
   const [jurusanFilter, setJurusanFilter] = React.useState('');
   const [kodeMKFilter, setKodeMKFilter] = React.useState('');
-  const jurusanSeenRef = React.useRef(new Set<string>());
   const [fakultasOptions, setFakultasOptions] = React.useState<string[]>([]);
   const [jurusanOptions, setJurusanOptions] = React.useState<string[]>([]);
 
@@ -90,10 +89,24 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     api.getFaculties().then((list) => {
       if (list.length) setFakultasOptions(list);
     }).catch(() => undefined);
+    api.getDepartments().then((list) => {
+      if (list.length) setJurusanOptions(list);
+    }).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [yearFilter, setYearFilter] = React.useState('');
   const [exporting, setExporting] = React.useState(false);
+  const [previewMode, setPreviewMode] = React.useState<boolean>(() => {
+    try { return window.localStorage.getItem('vbl-review-preview') === '1'; } catch { return false; }
+  });
+  const [thumbs, setThumbs] = React.useState<Record<string, Record<string, string>>>({});
+  const [thumbsChecked, setThumbsChecked] = React.useState<Record<string, boolean>>({});
+  const togglePreview = (): void => {
+    setPreviewMode((v) => {
+      try { window.localStorage.setItem('vbl-review-preview', v ? '0' : '1'); } catch { /* ignore */ }
+      return !v;
+    });
+  };
   const [page, setPage] = React.useState(1);
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
 
@@ -167,10 +180,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
         setTotal(0);
       } else {
         const loaded = res.items || [];
-        loaded.forEach((s) => {
-          if (s.Jurusan) jurusanSeenRef.current.add(s.Jurusan);
-        });
-        setJurusanOptions(Array.from(jurusanSeenRef.current).sort());
         setItems(loaded);
         setTotal(res.total || 0);
       }
@@ -188,9 +197,6 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setPage(1);
     setPicFilter('');
     setStatusFilter('');
-    jurusanSeenRef.current = new Set();
-    setFakultasOptions([]);
-    setJurusanOptions([]);
   };
 
   const quickFilter = (field: 'dosen' | 'jurusan' | 'kodeMK', value: string): void => {
@@ -415,7 +421,33 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     );
   };
   const showPicCol = isAdmin || canEdit;
-  const colCount = isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9);
+  const previewOn = canEdit && previewMode;
+  const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 1 : 0);
+
+  React.useEffect(() => {
+    if (!previewOn) return;
+    const need = items.map((s) => s.Id).filter((id) => !thumbsChecked[id]);
+    if (need.length === 0) return;
+    let active = true;
+    api.getThumbs(need.slice(0, 25)).then((res) => {
+      if (!active) return;
+      setThumbs((prev) => ({ ...prev, ...(res || {}) }));
+      setThumbsChecked((prev) => {
+        const n = { ...prev };
+        need.slice(0, 25).forEach((id) => { n[id] = true; });
+        return n;
+      });
+    }).catch(() => {
+      if (!active) return;
+      setThumbsChecked((prev) => {
+        const n = { ...prev };
+        need.slice(0, 25).forEach((id) => { n[id] = true; });
+        return n;
+      });
+    });
+    return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewOn, items]);
 
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
@@ -528,6 +560,26 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.color.text, fontSize: tokens.font.small, textDecoration: 'underline', whiteSpace: 'nowrap', padding: 0 }}
             >Clear filters</button>
           )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={togglePreview}
+              aria-pressed={previewMode}
+              title="Show video frame previews (bumper, 25%, 50%, 75%)"
+              style={{
+                marginLeft: 'auto', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                padding: '7px 12px', borderRadius: tokens.radius.pill, fontSize: tokens.font.small, fontWeight: 600,
+                border: `1px solid ${previewMode ? tokens.color.blue : tokens.color.line}`,
+                background: previewMode ? tokens.color.blue : '#fff',
+                color: previewMode ? '#fff' : tokens.color.text
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2" /><path d="M21 16l-5-5-8 8" />
+              </svg>
+              Preview {previewMode ? 'on' : 'off'}
+            </button>
+          )}
           <GhostButton
             type="button"
             disabled={exporting}
@@ -536,7 +588,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               const f = buildFilter() as Parameters<typeof api.exportExcel>[0];
               api.exportExcel(f).catch(() => setError('Export failed.')).finally(() => setExporting(false));
             }}
-            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: canEdit ? 0 : 'auto' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -665,7 +717,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150) }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: (canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150)) + (previewOn ? 470 : 0) }}>
           <thead>
             <tr>
               {canEdit && (
@@ -681,6 +733,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
               <th style={{ ...th, width: 110 }}>Code</th>
               <th style={{ ...th, minWidth: 160 }}>Submitter</th>
               <th style={{ ...th, minWidth: 200 }}>MK / Topik</th>
+              {previewOn && <th style={{ ...th, minWidth: 470 }}>Preview</th>}
               <th style={{ ...th, width: 90 }}>Week / Sesi</th>
               <th style={{ ...th, minWidth: 140 }}>Status</th>
               {showPicCol && <th style={{ ...th, minWidth: 110 }}>PIC Editor</th>}
@@ -703,6 +756,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                   <td style={td}><div style={sk(72)} /></td>
                   <td style={td}><div style={sk(110)} /></td>
                   <td style={td}><div style={sk(150)} /></td>
+                  {previewOn && <td style={td}><div style={{ ...sk(440), height: 62 }} /></td>}
                   <td style={td}><div style={sk(60)} /></td>
                   <td style={td}><div style={sk(90)} /></td>
                   {showPicCol && <td style={td}><div style={sk(80)} /></td>}
@@ -794,6 +848,33 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                         {s.Topik}
                       </div>
                     </td>
+                    {previewOn && (
+                      <td style={td}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {([['b', 'BUMPER'], ['25', '25%'], ['50', '50%'], ['75', '75%']] as [string, string][]).map(([k, label]) => {
+                            const src = thumbs[s.Id.toLowerCase()]?.[k];
+                            const isBumper = k === 'b';
+                            const box: React.CSSProperties = {
+                              position: 'relative', width: 110, height: 62, borderRadius: 3, overflow: 'hidden', flex: '0 0 auto',
+                              border: isBumper ? '2px solid #e8590c' : `1px solid ${tokens.color.line}`,
+                              background: tokens.color.surfaceAlt, boxSizing: 'border-box'
+                            };
+                            return (
+                              <div key={k} style={box}>
+                                {src ? (
+                                  <img src={src} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: tokens.color.text }}>
+                                    {thumbsChecked[s.Id] ? 'no preview' : ''}
+                                  </div>
+                                )}
+                                <span style={{ position: 'absolute', left: 3, bottom: 3, background: isBumper ? '#e8590c' : 'rgba(20,30,50,.75)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3 }}>{label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    )}
                     <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {(s.Week || s.Session) && (
                         <div style={{ fontSize: tokens.font.micro, fontWeight: 600, color: tokens.color.ink }}>
