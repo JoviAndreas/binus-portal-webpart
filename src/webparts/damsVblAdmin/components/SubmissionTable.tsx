@@ -56,6 +56,96 @@ const td: React.CSSProperties = {
 };
 
 
+const PREVIEW_FRAMES: [string, string][] = [['b', 'BUMPER'], ['25', '25%'], ['50', '50%'], ['75', '75%']];
+const FRAME_W = 110;
+const FRAME_H = 62;
+const WIDE_W = FRAME_W * 4 + 12;
+
+const IconVideo: React.FC<{ size: number }> = ({ size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="6" width="14" height="12" rx="2" /><path d="M16 10l6-3v10l-6-3" />
+  </svg>
+);
+const IconDoc: React.FC<{ size: number }> = ({ size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+const IconWarn: React.FC<{ size: number }> = ({ size }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" />
+  </svg>
+);
+
+const WideNotice: React.FC<{ icon: React.ReactNode; title: string; text: React.ReactNode; danger?: boolean }> = ({ icon, title, text, danger }) => (
+  <div
+    style={{
+      width: WIDE_W, height: FRAME_H, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderRadius: 3,
+      border: `1px dashed ${danger ? tokens.color.danger : tokens.color.line}`,
+      background: danger ? tokens.color.dangerBg : tokens.color.surfaceAlt,
+      color: danger ? tokens.color.danger : tokens.color.text
+    }}
+  >
+    <span style={{ flex: '0 0 auto', display: 'inline-flex' }}>{icon}</span>
+    <div>
+      <div style={{ fontSize: tokens.font.small, fontWeight: 700, color: danger ? tokens.color.danger : tokens.color.ink }}>{title}</div>
+      <div style={{ fontSize: tokens.font.micro }}>{text}</div>
+    </div>
+  </div>
+);
+
+const PreviewCell: React.FC<{
+  frames: Record<string, string> | undefined;
+  status: 'done' | 'error' | undefined;
+  isDoc: boolean;
+  onRetry: () => void;
+}> = ({ frames, status, isDoc, onRetry }) => {
+  if (isDoc) {
+    return <WideNotice icon={<IconDoc size={26} />} title="No video preview" text="This submission is a document, not a video." />;
+  }
+  if (status === 'error') {
+    return (
+      <WideNotice
+        danger
+        icon={<IconWarn size={26} />}
+        title="Couldn't load previews"
+        text={<>Network or server error. <button type="button" data-inline="true" onClick={(e) => { e.stopPropagation(); onRetry(); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: tokens.color.blue, fontWeight: 700, fontSize: tokens.font.micro }}>Retry</button></>}
+      />
+    );
+  }
+  const loading = !status;
+  if (!loading && (!frames || Object.keys(frames).length === 0)) {
+    return <WideNotice icon={<IconVideo size={26} />} title="No preview yet" text="Frames haven't been generated for this video." />;
+  }
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {PREVIEW_FRAMES.map(([k, label]) => {
+        const src = frames?.[k];
+        const isBumper = k === 'b';
+        const missing = !loading && !src;
+        const box: React.CSSProperties = {
+          position: 'relative', width: FRAME_W, height: FRAME_H, borderRadius: 3, overflow: 'hidden', flex: '0 0 auto', boxSizing: 'border-box',
+          border: isBumper ? `2px ${missing ? 'dashed' : 'solid'} ${tokens.color.orange}` : `1px ${missing ? 'dashed' : 'solid'} ${tokens.color.line}`,
+          background: tokens.color.surfaceAlt,
+          display: missing ? 'flex' : undefined, alignItems: 'center', justifyContent: 'center', color: tokens.color.text
+        };
+        return (
+          <div key={k} className={loading ? 'dams-shimmer' : undefined} style={box}>
+            {src && <img src={src} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+            {missing && <IconVideo size={20} />}
+            {!loading && (
+              <span style={{ position: 'absolute', left: 3, bottom: 3, background: missing ? tokens.color.text : isBumper ? tokens.color.orange : 'rgba(20,30,50,.75)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3 }}>{label}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const VIDEO_EXT = /\.(mp4|mov|m4v|mkv|avi|wmv|webm|mpg|mpeg)$/i;
+const isDocumentRow = (s: ISubmission): boolean => !!s.FileName && !VIDEO_EXT.test(s.FileName.trim());
+
 export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadToken, onOpenDrawer, me, editors, onTotalChange }) => {
   const isAdmin = me.IsAdmin;
   const canEdit = me.IsAdmin || me.IsEditor;
@@ -100,7 +190,16 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     try { return window.localStorage.getItem('vbl-review-preview') === '1'; } catch { return false; }
   });
   const [thumbs, setThumbs] = React.useState<Record<string, Record<string, string>>>({});
-  const [thumbsChecked, setThumbsChecked] = React.useState<Record<string, boolean>>({});
+  const [thumbsStatus, setThumbsStatus] = React.useState<Record<string, 'done' | 'error'>>({});
+  const [thumbsRetry, setThumbsRetry] = React.useState(0);
+  const retryThumbs = (): void => {
+    setThumbsStatus((prev) => {
+      const n = { ...prev };
+      items.forEach((s) => { if (n[s.Id] === 'error') delete n[s.Id]; });
+      return n;
+    });
+    setThumbsRetry((c) => c + 1);
+  };
   const togglePreview = (): void => {
     setPreviewMode((v) => {
       try { window.localStorage.setItem('vbl-review-preview', v ? '0' : '1'); } catch { /* ignore */ }
@@ -426,28 +525,25 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   React.useEffect(() => {
     if (!previewOn) return;
-    const need = items.map((s) => s.Id).filter((id) => !thumbsChecked[id]);
+    const need = items.filter((s) => !isDocumentRow(s) && !thumbsStatus[s.Id]).map((s) => s.Id).slice(0, 25);
     if (need.length === 0) return;
     let active = true;
-    api.getThumbs(need.slice(0, 25)).then((res) => {
-      if (!active) return;
-      setThumbs((prev) => ({ ...prev, ...(res || {}) }));
-      setThumbsChecked((prev) => {
+    const mark = (st: 'done' | 'error'): void => {
+      setThumbsStatus((prev) => {
         const n = { ...prev };
-        need.slice(0, 25).forEach((id) => { n[id] = true; });
+        need.forEach((id) => { n[id] = st; });
         return n;
       });
-    }).catch(() => {
+    };
+    api.getThumbs(need).then((res) => {
       if (!active) return;
-      setThumbsChecked((prev) => {
-        const n = { ...prev };
-        need.slice(0, 25).forEach((id) => { n[id] = true; });
-        return n;
-      });
-    });
+      if (res === null) { mark('error'); return; }
+      setThumbs((prev) => ({ ...prev, ...res }));
+      mark('done');
+    }).catch(() => { if (active) mark('error'); });
     return () => { active = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewOn, items]);
+  }, [previewOn, items, thumbsRetry]);
 
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
@@ -850,29 +946,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                     </td>
                     {previewOn && (
                       <td style={td}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {([['b', 'BUMPER'], ['25', '25%'], ['50', '50%'], ['75', '75%']] as [string, string][]).map(([k, label]) => {
-                            const src = thumbs[s.Id.toLowerCase()]?.[k];
-                            const isBumper = k === 'b';
-                            const box: React.CSSProperties = {
-                              position: 'relative', width: 110, height: 62, borderRadius: 3, overflow: 'hidden', flex: '0 0 auto',
-                              border: isBumper ? '2px solid #e8590c' : `1px solid ${tokens.color.line}`,
-                              background: tokens.color.surfaceAlt, boxSizing: 'border-box'
-                            };
-                            return (
-                              <div key={k} style={box}>
-                                {src ? (
-                                  <img src={src} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: tokens.color.text }}>
-                                    {thumbsChecked[s.Id] ? 'no preview' : ''}
-                                  </div>
-                                )}
-                                <span style={{ position: 'absolute', left: 3, bottom: 3, background: isBumper ? '#e8590c' : 'rgba(20,30,50,.75)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3 }}>{label}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <PreviewCell
+                          frames={thumbs[s.Id.toLowerCase()]}
+                          status={thumbsStatus[s.Id]}
+                          isDoc={isDocumentRow(s)}
+                          onRetry={retryThumbs}
+                        />
                       </td>
                     )}
                     <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>

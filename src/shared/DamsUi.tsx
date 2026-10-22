@@ -50,6 +50,9 @@ select.dams-in {
 .dams-opt-sel { background: ${tokens.color.surfaceAlt}; }
 .dams-row { transition: background .1s; }
 .dams-row:hover { background: ${tokens.color.tint}; }
+@keyframes dams-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.dams-shimmer { background: linear-gradient(90deg, ${tokens.color.surfaceAlt} 0%, ${tokens.color.line} 50%, ${tokens.color.surfaceAlt} 100%); background-size: 200% 100%; animation: dams-shimmer 1.6s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .dams-shimmer { animation: none; } }
 `;
 
 export const DamsStyles: React.FC = () => {
