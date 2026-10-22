@@ -14,6 +14,7 @@ import {
   ConfirmModal,
   STATUS_LABELS
 } from '../../../shared/DamsUi';
+import { BulkConfirmModal, ToastStack, useToasts } from '../../../shared/bulkui';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive';
 
@@ -235,12 +236,8 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
 
   // Bulk selection (admin only)
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkPicVal, setBulkPicVal] = React.useState('');
-  const [bulkStatusVal, setBulkStatusVal] = React.useState('');
-  const [bulkRejectNote, setBulkRejectNote] = React.useState('');
-  const [bulkKV, setBulkKV] = React.useState('');
-  const [bulkKA, setBulkKA] = React.useState('');
-  const [bulkKK, setBulkKK] = React.useState('');
+  const [bulkPopup, setBulkPopup] = React.useState<{ kind: 'pic' | 'status' | 'KV' | 'KA' | 'KK'; value: string } | null>(null);
+  const { toasts, push: pushToast, close: closeToast } = useToasts();
   const [confirmModal, setConfirmModal] = React.useState<{ message: string; onConfirm: () => void } | null>(null);
   const [bulkLoading, setBulkLoading] = React.useState(false);
 
@@ -334,6 +331,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
 
   const handleStatusChange = (id: string, newStatus: string): void => {
+    if (selected.has(id)) { openBulk('status', newStatus); return; }
     if (newStatus === 'Rejected') {
       setPendingRejected((prev) => ({ ...prev, [id]: prev[id] ?? '' }));
       return;
@@ -417,35 +415,60 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     setSelected((prev) => prev.size === selectableItems.length && selectableItems.length > 0 ? new Set() : new Set(selectableItems.map((s) => s.Id)));
   };
 
-  // Bulk apply
-  const doBulkApply = (patch: ISubmissionPatch, label: string): void => {
+  // Bulk edit: changing one control opens a popup; confirming applies it to every selected row.
+  type BulkKind = 'pic' | 'status' | 'KV' | 'KA' | 'KK';
+  const openBulk = (kind: BulkKind, value: string): void => {
+    if (selected.size === 0) return;
+    setBulkPopup({ kind, value });
+  };
+  const cancelBulk = (): void => { setBulkPopup(null); };
+  const bulkDescribe = (kind: BulkKind, value: string): { field: string; valueLabel: string } => {
+    if (kind === 'pic') return { field: 'PIC Editor', valueLabel: value };
+    if (kind === 'status') return { field: 'Status', valueLabel: STATUS_LABELS[value] || value };
+    const names: Record<string, string> = { KV: 'Kualitas Video (KV)', KA: 'Kualitas Audio (KA)', KK: 'Kualitas Konten (KK)' };
+    return { field: names[kind], valueLabel: value === '0' ? 'Cleared' : kLabel(value) };
+  };
+  const confirmBulk = (note: string): void => {
+    if (!bulkPopup) return;
+    const { kind, value } = bulkPopup;
+    const patch: ISubmissionPatch = {};
+    if (kind === 'pic') patch.PicEditing = value;
+    if (kind === 'status') { patch.Status = value; if (value === 'Rejected') patch.ReviewNote = note; }
+    if (kind === 'KV') patch.KualitasVideo = value;
+    if (kind === 'KA') patch.KualitasAudio = value;
+    if (kind === 'KK') patch.KualitasKonten = value;
     const ids = Array.from(selected);
-    setConfirmModal({
-      message: `Apply ${label} to ${ids.length} submission(s)?`,
-      onConfirm: () => {
-        setConfirmModal(null);
-        setBulkLoading(true);
-        api.bulkPatch({ ids, patch }).then((result) => {
-          setBulkLoading(false);
-          if (!result) { setError('Bulk update failed.'); return; }
-          if (result.failed.length > 0) setError(`${result.failed.length} row(s) failed.`);
-          setLocalOverrides({});
-          setSelected(new Set());
-          setBulkPicVal('');
-          setBulkStatusVal('');
-          setBulkRejectNote('');
-          setBulkKV('');
-          setBulkKA('');
-          setBulkKK('');
-          // Trigger re-fetch via counter trick: toggle a local reload
-          api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0]).then((res) => {
-            if (res) { setItems(res.items || []); setTotal(res.total || 0); }
-          }).catch(() => undefined);
-        }).catch(() => {
-          setBulkLoading(false);
-          setError('Bulk update failed.');
-        });
+    const codeOf = (id: string): string => items.find((s) => s.Id === id)?.CodeNumber || id.slice(0, 8);
+    const d = bulkDescribe(kind, value);
+    setBulkPopup(null);
+    setBulkLoading(true);
+    api.bulkPatch({ ids, patch }).then((result) => {
+      setBulkLoading(false);
+      if (!result) {
+        pushToast({ kind: 'error', title: 'Bulk update failed', text: 'The server did not accept the request. Nothing was changed.' });
+        return;
       }
+      const failed = result.failed || [];
+      if (failed.length === 0) {
+        pushToast({ kind: 'success', title: `Updated ${result.updated} row${result.updated === 1 ? '' : 's'}`, text: `${d.field}: ${d.valueLabel}` });
+      } else {
+        const details = failed.map((f) => ({ code: codeOf(f.id), reason: f.reason }));
+        if (result.updated > 0) {
+          pushToast({ kind: 'warn', title: `Updated ${result.updated} of ${ids.length} rows`, text: `${failed.length} row${failed.length === 1 ? '' : 's'} failed.`, details });
+        } else {
+          const groups: Record<string, number> = {};
+          failed.forEach((f) => { const r = f.reason.replace(/\.$/, ''); groups[r] = (groups[r] || 0) + 1; });
+          pushToast({ kind: 'error', title: `${failed.length} row${failed.length === 1 ? '' : 's'} failed`, text: Object.keys(groups).map((r) => `${r} (${groups[r]})`).join(', '), details });
+        }
+      }
+      setLocalOverrides({});
+      setSelected(new Set());
+      api.listSubmissions(buildFilter() as Parameters<typeof api.listSubmissions>[0]).then((res) => {
+        if (res) { setItems(res.items || []); setTotal(res.total || 0); }
+      }).catch(() => undefined);
+    }).catch(() => {
+      setBulkLoading(false);
+      pushToast({ kind: 'error', title: 'Bulk update failed', text: 'Network or server error. Nothing was changed.' });
     });
   };
 
@@ -570,6 +593,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     return '#16a34a';
   };
 const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'KualitasKonten'];
+const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', KualitasAudio: 'KA', KualitasKonten: 'KK' };
 
   // Display value helpers (merge server state with local override)
   const val = <K extends keyof ISubmission>(s: ISubmission, k: K): ISubmission[K] =>
@@ -717,85 +741,13 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           }}
         >
           <span style={{ fontSize: tokens.font.small, color: '#fff', fontWeight: 700, marginRight: 4, whiteSpace: 'nowrap' }}>
-            {selected.size > 0 ? `${selected.size} selected` : 'Select rows to bulk edit'}
+            {selected.size > 0 ? `Bulk edit mode - ${selected.size} selected` : 'Select rows to bulk edit'}
           </span>
-          {isAdmin && (
-            <PicCombo value={bulkPicVal} editors={editors} onChange={(v) => setBulkPicVal(v)} disabled={selected.size === 0} />
-          )}
-          <StatusCombo value={bulkStatusVal} onChange={(v) => { setBulkStatusVal(v); setBulkRejectNote(''); }} disabled={selected.size === 0} placeholder="Status..." />
-          {bulkStatusVal === 'Rejected' && (
-            <input
-              className="dams-in"
-              type="text"
-              placeholder="Rejection reason..."
-              value={bulkRejectNote}
-              onChange={(e) => setBulkRejectNote(e.target.value)}
-              style={{ padding: '4px 8px', fontSize: tokens.font.small, minWidth: 180 }}
-            />
-          )}
-          {/* KV KA KK inline */}
-          {(['KV', 'KA', 'KK'] as const).map((lbl, i) => {
-            const setters = [setBulkKV, setBulkKA, setBulkKK];
-            const vals = [bulkKV, bulkKA, bulkKK];
-            const cur = vals[i];
-            return (
-              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: tokens.font.micro, color: 'rgba(255,255,255,.6)', marginRight: 2 }}>{lbl}</span>
-                {([['1','W'],['3','M'],['5','E']] as const).map(([v, label]) => {
-                  const active = cur === v;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      disabled={selected.size === 0}
-                      onClick={() => setters[i](active ? '' : v)}
-                      style={{
-                        padding: '1px 6px',
-                        fontWeight: 700,
-                        fontSize: tokens.font.micro,
-                        border: `1.5px solid ${active ? kColor(v) : 'rgba(255,255,255,.3)'}`,
-                        borderRadius: tokens.radius.pill,
-                        background: active ? kColor(v) : 'transparent',
-                        color: active ? '#fff' : 'rgba(255,255,255,.7)',
-                        cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
-                        opacity: selected.size === 0 ? 0.4 : 1
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-          <PrimaryButton
-            type="button"
-            disabled={bulkLoading || selected.size === 0 || (!bulkPicVal && !bulkStatusVal && !bulkKV && !bulkKA && !bulkKK)}
-            onClick={() => {
-              if (bulkStatusVal === 'Rejected' && !bulkRejectNote.trim()) {
-                setError('Rejection reason required for bulk Rejected.');
-                return;
-              }
-              const patch: ISubmissionPatch = {};
-              if (bulkPicVal) patch.PicEditing = bulkPicVal;
-              if (bulkStatusVal) patch.Status = bulkStatusVal;
-              if (bulkStatusVal === 'Rejected' && bulkRejectNote) patch.ReviewNote = bulkRejectNote;
-              if (bulkKV) patch.KualitasVideo = bulkKV;
-              if (bulkKA) patch.KualitasAudio = bulkKA;
-              if (bulkKK) patch.KualitasKonten = bulkKK;
-              const label = [
-                bulkPicVal && `PIC=${bulkPicVal.split('@')[0]}`,
-                bulkStatusVal && `Status=${bulkStatusVal}`,
-                bulkKV && `KV=${kLabel(bulkKV)}`,
-                bulkKA && `KA=${kLabel(bulkKA)}`,
-                bulkKK && `KK=${kLabel(bulkKK)}`
-              ].filter(Boolean).join(', ');
-              doBulkApply(patch, label);
-            }}
-            style={{ flexShrink: 0 }}
-          >
-            Apply
-          </PrimaryButton>
+          <span style={{ fontSize: tokens.font.micro, color: 'rgba(255,255,255,.75)' }}>
+            {selected.size > 0
+              ? 'Editing a selected row applies to all selected rows. Editing an unselected row changes only that row.'
+              : 'Tick a row, then edit one of the selected rows to update them all at once.'}
+          </span>
           {selected.size > 0 && (
             <button
               type="button"
@@ -983,7 +935,7 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                         <PicCombo
                           value={val(s, 'PicEditing') as string}
                           editors={editors}
-                          onChange={(email) => optimisticPatch(s.Id, { PicEditing: email })}
+                          onChange={(email) => { if (selected.has(s.Id)) openBulk('pic', email); else optimisticPatch(s.Id, { PicEditing: email }); }}
                           disabled={!isAdmin}
                         />
                       </td>
@@ -1001,7 +953,12 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
                                   <button
                                     key={v}
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); optimisticPatch(s.Id, { [k]: active ? '0' : v } as ISubmissionPatch); }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = active ? '0' : v;
+                                      if (selected.has(s.Id)) openBulk(K_KIND[k as string], next);
+                                      else optimisticPatch(s.Id, { [k]: next } as ISubmissionPatch);
+                                    }}
                                     style={{
                                       padding: '1px 5px',
                                       fontWeight: 700,
@@ -1150,6 +1107,39 @@ const K_FIELDS: (keyof ISubmission)[] = ['KualitasVideo', 'KualitasAudio', 'Kual
           onCancel={() => setConfirmModal(null)}
         />
       )}
+
+      {bulkPopup && (() => {
+        const { kind, value } = bulkPopup;
+        const n = selected.size;
+        const rows = items.filter((s) => selected.has(s.Id));
+        const d = bulkDescribe(kind, value);
+        const rowsWord = n === 1 ? 'row' : 'rows';
+        const subsWord = n === 1 ? 'submission' : 'submissions';
+        const otherPic = kind === 'pic' ? rows.filter((s) => s.PicEditing && s.PicEditing.toLowerCase() !== value.toLowerCase()).length : 0;
+        const isReject = kind === 'status' && value === 'Rejected';
+        return (
+          <BulkConfirmModal
+            title={kind === 'pic' ? `Reassign ${n} ${subsWord}?` : isReject ? `Reject ${n} ${subsWord}?` : `Update ${n} ${subsWord}?`}
+            description={isReject
+              ? <>All selected rows will be set to <b>Rejected</b> with the note below.</>
+              : kind === 'pic'
+                ? <>Assign <b>PIC Editor</b> to <b>{value}</b> for all selected rows.</>
+                : kind === 'status'
+                  ? <>Change <b>Status</b> to <b>{d.valueLabel}</b> for all selected rows.</>
+                  : <>Set <b>{d.field}</b> to <b>{d.valueLabel}</b> for all selected rows.</>}
+            summary={`${d.field}: ${d.valueLabel}`}
+            codes={rows.map((s) => s.CodeNumber || s.Id.slice(0, 8))}
+            warning={otherPic > 0 ? `${otherPic} row${otherPic === 1 ? ' is' : 's are'} currently assigned to someone else. ${otherPic === 1 ? 'It' : 'They'} will be reassigned.` : undefined}
+            noteRequired={isReject}
+            notePlaceholder="Reason for rejection (required)"
+            danger={isReject}
+            confirmLabel={kind === 'pic' ? `Reassign ${n} ${rowsWord}` : isReject ? `Reject ${n} ${rowsWord}` : `Update ${n} ${rowsWord}`}
+            onConfirm={confirmBulk}
+            onCancel={cancelBulk}
+          />
+        );
+      })()}
+      <ToastStack toasts={toasts} onClose={closeToast} />
     </div>
   );
 };
