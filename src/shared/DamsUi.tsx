@@ -441,20 +441,21 @@ export const PicCombo: React.FC<{
   const [search, setSearch] = React.useState('');
   const ref = React.useRef<HTMLDivElement>(null);
 
+  const editorLabel = (e: { Name?: string | null; Email: string }): string => e.Name || e.Email.split('@')[0];
   const current = editors.find((e) => e.Email.toLowerCase() === (value || '').toLowerCase());
   const displayName = current
-    ? current.Name.split(' ')[0]
+    ? editorLabel(current).split(' ')[0]
     : value
     ? value.split('@')[0]
     : 'Unassigned';
   const initials = current
-    ? current.Name.split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()
+    ? editorLabel(current).split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()
     : displayName.slice(0, 2).toUpperCase();
 
   const filtered = editors.filter(
     (e) =>
       !search ||
-      e.Name.toLowerCase().includes(search.toLowerCase()) ||
+      editorLabel(e).toLowerCase().includes(search.toLowerCase()) ||
       e.Email.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -578,10 +579,10 @@ export const PicCombo: React.FC<{
                   flexShrink: 0
                 }}
               >
-                {e.Name.split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()}
+                {editorLabel(e).split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase()}
               </span>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{e.Name}</div>
+                <div style={{ fontSize: tokens.font.small, fontWeight: 600, color: tokens.color.ink }}>{editorLabel(e)}</div>
                 <div style={{ fontSize: tokens.font.micro, color: tokens.color.text }}>{e.Jabatan}</div>
               </div>
             </button>
