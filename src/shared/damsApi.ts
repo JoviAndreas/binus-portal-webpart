@@ -100,6 +100,10 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
+  public getMediaUrl(id: string, signal?: AbortSignal): Promise<{ Url: string; Name: string | null; Size: number | null; MimeType: string | null; ExpiresInSeconds: number } | null> {
+    return this.getJson(`/Submissions/${encodeURIComponent(id)}/media-url`, signal);
+  }
+
   public getThumbs(ids: string[], signal?: AbortSignal): Promise<Record<string, Record<string, string>> | null> {
     return this.getJson(`/Submissions/thumbs?ids=${ids.map(encodeURIComponent).join(',')}`, signal);
   }

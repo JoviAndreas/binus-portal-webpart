@@ -15,6 +15,7 @@ import {
   STATUS_LABELS
 } from '../../../shared/DamsUi';
 import { BulkConfirmModal, ToastStack, useToasts } from '../../../shared/bulkui';
+import { AudioPreview } from './AudioPreview';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive';
 
@@ -585,7 +586,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
   const showPicCol = isAdmin || canEdit;
   const previewOn = canEdit && previewMode;
-  const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 1 : 0);
+  const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 2 : 0);
 
   // Rows ask for their frames (needThumb) as they scroll into view; requests are batched
   // and all in-flight work is cancelled when the page, filters or Preview mode change.
@@ -828,7 +829,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: (canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150)) + (previewOn ? 470 : 0) }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: (canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150)) + (previewOn ? 730 : 0) }}>
           <thead>
             <tr>
               {canEdit && (
@@ -857,6 +858,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                   </span>
                 </th>
               )}
+              {previewOn && <th style={{ ...th, minWidth: 260 }}>Audio</th>}
               <th style={{ ...th, width: 90 }}>Week / Sesi</th>
               <th style={{ ...th, minWidth: 140 }}>Status</th>
               {showPicCol && <th style={{ ...th, minWidth: 110 }}>PIC Editor</th>}
@@ -880,6 +882,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                   <td style={td}><div style={sk(110)} /></td>
                   <td style={td}><div style={sk(150)} /></td>
                   {previewOn && <td style={td}><div style={{ ...sk(440), height: 62 }} /></td>}
+                  {previewOn && <td style={td}><div style={{ ...sk(200), height: 40 }} /></td>}
                   <td style={td}><div style={sk(60)} /></td>
                   <td style={td}><div style={sk(90)} /></td>
                   {showPicCol && <td style={td}><div style={sk(80)} /></td>}
@@ -981,6 +984,11 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                           isDoc={isDocumentRow(s)}
                           onRetry={retryThumbs}
                         />
+                      </td>
+                    )}
+                    {previewOn && (
+                      <td style={td}>
+                        {isDocumentRow(s) ? <span style={{ color: tokens.color.text, fontSize: tokens.font.micro }}>No audio</span> : <AudioPreview api={api} id={s.Id} />}
                       </td>
                     )}
                     <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>
