@@ -4,9 +4,25 @@ import { DamsApi } from '../../../shared/damsApi';
 
 const VOLUME_KEY = 'vbl-audio-volume';
 const MUTE_KEY = 'vbl-audio-muted';
+const URL_TTL_MS = 40 * 60 * 1000;
+const PAUSE_RELEASE_MS = 15000;
+const WARM_RELEASE_MS = 6000;
+const HOVER_DELAY_MS = 200;
 
-// Only one row plays at a time.
-let currentlyPlaying: HTMLAudioElement | null = null;
+// Only one row may stream at a time. A row claims the slot before it loads or plays;
+// claiming drops the previous row's connection. Hover pre-warming never interrupts a row that is playing.
+interface Owner { key: string; intent: 'warm' | 'play'; stop: () => void }
+let activeOwner: Owner | null = null;
+const claim = (o: Owner, intent: 'warm' | 'play'): boolean => {
+  if (activeOwner && activeOwner !== o) {
+    if (intent === 'warm' && activeOwner.intent === 'play') return false;
+    activeOwner.stop();
+  }
+  o.intent = intent;
+  activeOwner = o;
+  return true;
+};
+const unclaim = (o: Owner): void => { if (activeOwner === o) activeOwner = null; };
 
 const readNumber = (key: string, fallback: number): number => {
   try {
@@ -35,6 +51,14 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const abortRef = React.useRef<AbortController | null>(null);
   const retriedRef = React.useRef(false);
+  const urlRef = React.useRef<{ url: string; at: number } | null>(null);
+  const resumeRef = React.useRef(0);
+  const genRef = React.useRef(0);
+  const warmTimerRef = React.useRef<number | null>(null);
+  const releaseTimerRef = React.useRef<number | null>(null);
+  const stopRef = React.useRef<() => void>(() => undefined);
+  const ownerRef = React.useRef<Owner>({ key: id, intent: 'warm', stop: () => stopRef.current() });
+
   const [state, setState] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [playing, setPlaying] = React.useState(false);
   const [time, setTime] = React.useState(0);
@@ -52,61 +76,147 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
     } catch { /* ignore */ }
   }, [volume, muted]);
 
+  const clearReleaseTimer = (): void => {
+    if (releaseTimerRef.current !== null) { window.clearTimeout(releaseTimerRef.current); releaseTimerRef.current = null; }
+  };
+  const clearWarmTimer = (): void => {
+    if (warmTimerRef.current !== null) { window.clearTimeout(warmTimerRef.current); warmTimerRef.current = null; }
+  };
+
+  // Drops the connection and remembers the position; the row keeps its place and resumes on play.
+  const dropConnection = (): void => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.getAttribute('src')) resumeRef.current = a.currentTime;
+    a.pause();
+    a.removeAttribute('src');
+    a.load();
+  };
+
+  // Called when another row claims the slot (and on unmount).
+  const hardStop = (): void => {
+    genRef.current += 1;
+    clearWarmTimer();
+    clearReleaseTimer();
+    if (abortRef.current) abortRef.current.abort();
+    dropConnection();
+    setPlaying(false);
+    setState((s) => (s === 'loading' ? (resumeRef.current > 0 ? 'ready' : 'idle') : s));
+  };
+  stopRef.current = hardStop;
+
   React.useEffect(() => () => {
+    genRef.current += 1;
+    clearWarmTimer();
+    clearReleaseTimer();
     if (abortRef.current) abortRef.current.abort();
     const a = audioRef.current;
-    if (a) {
-      a.pause();
-      a.removeAttribute('src');
-      a.load();
-      if (currentlyPlaying === a) currentlyPlaying = null;
-    }
+    if (a) { a.pause(); a.removeAttribute('src'); a.load(); }
+    unclaim(ownerRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const mint = async (): Promise<string | null> => {
+  // The minted link is reused for 40 minutes, so hovering, playing and resuming cost one backend call.
+  const getUrl = async (force = false): Promise<string | null> => {
+    const cached = urlRef.current;
+    if (!force && cached && Date.now() - cached.at < URL_TTL_MS) return cached.url;
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
       const res = await api.getMediaUrl(id, ctrl.signal);
-      return ctrl.signal.aborted || !res ? null : res.Url;
+      if (ctrl.signal.aborted || !res) return null;
+      urlRef.current = { url: res.Url, at: Date.now() };
+      return res.Url;
     } catch {
       return null;
     }
   };
 
-  const startPlayback = async (resume: number): Promise<void> => {
+  const scheduleRelease = (ms: number): void => {
+    clearReleaseTimer();
+    releaseTimerRef.current = window.setTimeout(() => {
+      releaseTimerRef.current = null;
+      const a = audioRef.current;
+      if (a && a.paused && a.getAttribute('src')) {
+        dropConnection();
+        unclaim(ownerRef.current);
+      }
+    }, ms);
+  };
+
+  // Hovering a player loads the link and the file's index so the first play and seek are quick.
+  const prewarm = (): void => {
     const a = audioRef.current;
     if (!a) return;
+    if (a.getAttribute('src')) { clearReleaseTimer(); return; }
+    if (warmTimerRef.current !== null || state === 'loading') return;
+    const gen = genRef.current;
+    warmTimerRef.current = window.setTimeout(() => {
+      warmTimerRef.current = null;
+      if (activeOwner && activeOwner !== ownerRef.current && activeOwner.intent === 'play') return;
+      void getUrl().then((url) => {
+        const el = audioRef.current;
+        if (!url || !el || el.getAttribute('src') || genRef.current !== gen) return;
+        if (!claim(ownerRef.current, 'warm')) return;
+        el.preload = 'metadata';
+        el.src = url;
+        scheduleRelease(WARM_RELEASE_MS);
+      });
+    }, HOVER_DELAY_MS);
+  };
+
+  const cancelWarm = (): void => {
+    clearWarmTimer();
+    const a = audioRef.current;
+    if (a && a.paused && a.getAttribute('src')) scheduleRelease(WARM_RELEASE_MS);
+  };
+
+  const startPlayback = async (resume: number, force = false): Promise<void> => {
+    const a = audioRef.current;
+    if (!a) return;
+    clearReleaseTimer();
+    claim(ownerRef.current, 'play');
+    const gen = genRef.current;
     setState('loading');
-    const url = await mint();
+    const url = await getUrl(force);
+    if (genRef.current !== gen) return;
     if (!url) { setState('error'); return; }
-    a.src = url;
     a.volume = volume;
     a.muted = muted;
-    const onMeta = (): void => {
-      a.removeEventListener('loadedmetadata', onMeta);
-      if (resume > 0) a.currentTime = resume;
-    };
-    a.addEventListener('loadedmetadata', onMeta);
+    a.preload = 'auto';
+    if (a.getAttribute('src') !== url) a.src = url;
+    if (resume > 0) {
+      if (a.readyState >= 1) {
+        a.currentTime = resume;
+      } else {
+        const onMeta = (): void => {
+          a.removeEventListener('loadedmetadata', onMeta);
+          a.currentTime = resume;
+        };
+        a.addEventListener('loadedmetadata', onMeta);
+      }
+    }
     try {
-      if (currentlyPlaying && currentlyPlaying !== a) currentlyPlaying.pause();
       await a.play();
-      currentlyPlaying = a;
+      if (genRef.current !== gen) return;
       setState('ready');
     } catch {
-      setState('error');
+      if (genRef.current === gen) setState('error');
     }
   };
 
   const toggle = (): void => {
     const a = audioRef.current;
     if (!a) return;
-    if (state === 'idle' || state === 'error') { void startPlayback(0); return; }
     if (state === 'loading') return;
+    if (state === 'error') { void startPlayback(0, true); return; }
+    if (state === 'idle') { void startPlayback(0); return; }
     if (a.paused) {
-      if (currentlyPlaying && currentlyPlaying !== a) currentlyPlaying.pause();
-      a.play().then(() => { currentlyPlaying = a; }).catch(() => { void startPlayback(a.currentTime); });
+      if (!a.getAttribute('src')) { void startPlayback(resumeRef.current); return; }
+      clearReleaseTimer();
+      claim(ownerRef.current, 'play');
+      a.play().catch(() => { void startPlayback(a.currentTime, true); });
     } else {
       a.pause();
     }
@@ -126,13 +236,24 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
   };
 
   return (
-    <div data-inline="true" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 230 }}>
+    <div
+      data-inline="true"
+      onClick={(e) => e.stopPropagation()}
+      onMouseEnter={prewarm}
+      onMouseLeave={cancelWarm}
+      onFocus={prewarm}
+      style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 230 }}
+    >
       <audio
         ref={audioRef}
         preload="none"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setTime(0); }}
+        onPlay={() => { setPlaying(true); clearReleaseTimer(); ownerRef.current.intent = 'play'; }}
+        onPause={() => {
+          setPlaying(false);
+          ownerRef.current.intent = 'warm';
+          if (audioRef.current && audioRef.current.getAttribute('src')) scheduleRelease(PAUSE_RELEASE_MS);
+        }}
+        onEnded={() => { setPlaying(false); setTime(0); resumeRef.current = 0; }}
         onTimeUpdate={(e) => { if (scrub === null) setTime(e.currentTarget.currentTime); }}
         onLoadedMetadata={(e) => setDuration(isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
         onDurationChange={(e) => setDuration(isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
@@ -142,7 +263,7 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
           if (!a || !a.getAttribute('src')) return;
           if (retriedRef.current) { setState('error'); return; }
           retriedRef.current = true;
-          void startPlayback(a.currentTime);
+          void startPlayback(a.currentTime, true);
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -188,7 +309,7 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
       {state === 'error' && (
         <div style={{ fontSize: tokens.font.micro, color: tokens.color.danger }}>
           Couldn't load audio.{' '}
-          <button type="button" onClick={() => void startPlayback(0)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: tokens.color.blue, fontWeight: 700, fontSize: tokens.font.micro }}>Retry</button>
+          <button type="button" onClick={() => void startPlayback(0, true)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: tokens.color.blue, fontWeight: 700, fontSize: tokens.font.micro }}>Retry</button>
         </div>
       )}
     </div>
