@@ -14,6 +14,7 @@ const HOVER_DELAY_MS = 200;
 interface Owner { key: string; intent: 'warm' | 'play'; stop: () => void }
 let activeOwner: Owner | null = null;
 const claim = (o: Owner, intent: 'warm' | 'play'): boolean => {
+  if (activeOwner === o && o.intent === 'play' && intent === 'warm') return false;
   if (activeOwner && activeOwner !== o) {
     if (intent === 'warm' && activeOwner.intent === 'play') return false;
     activeOwner.stop();
@@ -52,6 +53,7 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
   const abortRef = React.useRef<AbortController | null>(null);
   const retriedRef = React.useRef(false);
   const urlRef = React.useRef<{ url: string; at: number } | null>(null);
+  const inflightRef = React.useRef<Promise<string | null> | null>(null);
   const resumeRef = React.useRef(0);
   const genRef = React.useRef(0);
   const warmTimerRef = React.useRef<number | null>(null);
@@ -99,6 +101,7 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
     clearWarmTimer();
     clearReleaseTimer();
     if (abortRef.current) abortRef.current.abort();
+    inflightRef.current = null;
     dropConnection();
     setPlaying(false);
     setState((s) => (s === 'loading' ? (resumeRef.current > 0 ? 'ready' : 'idle') : s));
@@ -116,21 +119,32 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The minted link is reused for 40 minutes, so hovering, playing and resuming cost one backend call.
-  const getUrl = async (force = false): Promise<string | null> => {
+  // The minted link is reused for 40 minutes. A request already in flight (for example from hover) is
+  // shared by later callers such as the play click, never cancelled by them. Only a forced retry,
+  // another row taking over, or unmount cancels it.
+  const getUrl = (force = false): Promise<string | null> => {
     const cached = urlRef.current;
-    if (!force && cached && Date.now() - cached.at < URL_TTL_MS) return cached.url;
+    if (!force && cached && Date.now() - cached.at < URL_TTL_MS) return Promise.resolve(cached.url);
+    if (!force && inflightRef.current) return inflightRef.current;
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    try {
-      const res = await api.getMediaUrl(id, ctrl.signal);
-      if (ctrl.signal.aborted || !res) return null;
-      urlRef.current = { url: res.Url, at: Date.now() };
-      return res.Url;
-    } catch {
-      return null;
-    }
+    const run = async (): Promise<string | null> => {
+      try {
+        const res = await api.getMediaUrl(id, ctrl.signal);
+        if (ctrl.signal.aborted || !res) return null;
+        urlRef.current = { url: res.Url, at: Date.now() };
+        return res.Url;
+      } catch {
+        return null;
+      }
+    };
+    const p: Promise<string | null> = run().then((r) => {
+      if (inflightRef.current === p) inflightRef.current = null;
+      return r;
+    });
+    inflightRef.current = p;
+    return p;
   };
 
   const scheduleRelease = (ms: number): void => {
@@ -154,10 +168,10 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
     const gen = genRef.current;
     warmTimerRef.current = window.setTimeout(() => {
       warmTimerRef.current = null;
-      if (activeOwner && activeOwner !== ownerRef.current && activeOwner.intent === 'play') return;
+      if (activeOwner && activeOwner.intent === 'play') return;
       void getUrl().then((url) => {
         const el = audioRef.current;
-        if (!url || !el || el.getAttribute('src') || genRef.current !== gen) return;
+        if (!url || !el || el.getAttribute('src') || genRef.current !== gen || ownerRef.current.intent === 'play') return;
         if (!claim(ownerRef.current, 'warm')) return;
         el.preload = 'metadata';
         el.src = url;
@@ -241,7 +255,6 @@ export const AudioPreview: React.FC<{ api: DamsApi; id: string }> = ({ api, id }
       onClick={(e) => e.stopPropagation()}
       onMouseEnter={prewarm}
       onMouseLeave={cancelWarm}
-      onFocus={prewarm}
       style={{ display: 'flex', flexDirection: 'column', gap: 6, width: 230 }}
     >
       <audio
