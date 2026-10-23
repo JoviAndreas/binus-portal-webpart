@@ -100,6 +100,40 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
+  public getPreviewUrl(id: string, signal?: AbortSignal): Promise<{ Url: string } | null> {
+    return this.getJson(`/Submissions/${encodeURIComponent(id)}/preview-url`, signal);
+  }
+
+  public async createReplaceSession(id: string): Promise<{ UploadUrl: string; Name: string | null; Size: number | null; ExpiresAt: string | null } | { error: string }> {
+    const c = await this.getClient();
+    const r = await c.post(this.url(`/Submissions/${encodeURIComponent(id)}/replace-session`), AadHttpClient.configurations.v1, {} as IHttpClientOptions);
+    if (r.status === 403) return { error: 'You can only replace videos on rows assigned to you.' };
+    if (!r.ok) return { error: (await r.text().catch(() => '')) || `Could not start the upload (HTTP ${r.status}).` };
+    return r.json();
+  }
+
+  public async completeReplace(id: string, size: number): Promise<boolean> {
+    const c = await this.getClient();
+    const r = await c.post(
+      this.url(`/Submissions/${encodeURIComponent(id)}/replace-complete`),
+      AadHttpClient.configurations.v1,
+      { body: JSON.stringify({ Size: size }) as unknown as string, headers: { 'Content-Type': 'application/json' } } as IHttpClientOptions
+    );
+    return r.ok;
+  }
+
+  public async uploadFrames(id: string, frames: Record<string, Blob>): Promise<boolean> {
+    const c = await this.getClient();
+    const form = new FormData();
+    Object.keys(frames).forEach((k) => form.append(k, frames[k], `${k}.jpg`));
+    const r = await c.post(
+      this.url(`/Submissions/${encodeURIComponent(id)}/frames`),
+      AadHttpClient.configurations.v1,
+      { body: form as unknown as string } as IHttpClientOptions
+    );
+    return r.ok;
+  }
+
   public getMediaUrl(id: string, signal?: AbortSignal): Promise<{ Url: string; Name: string | null; Size: number | null; MimeType: string | null; ExpiresInSeconds: number } | null> {
     return this.getJson(`/Submissions/${encodeURIComponent(id)}/media-url`, signal);
   }

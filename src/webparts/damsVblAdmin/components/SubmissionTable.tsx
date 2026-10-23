@@ -16,6 +16,8 @@ import {
 } from '../../../shared/DamsUi';
 import { BulkConfirmModal, ToastStack, useToasts } from '../../../shared/bulkui';
 import { AudioPreview } from './AudioPreview';
+import { VideoActions } from './VideoActions';
+import { VideoPreviewModal } from './VideoPreviewModal';
 
 type FilterChip = 'myqueue' | 'unassigned' | 'allactive';
 
@@ -233,6 +235,14 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   });
   const [thumbs, setThumbs] = React.useState<Record<string, Record<string, string>>>({});
   const [thumbsStatus, setThumbsStatus] = React.useState<Record<string, ThumbState>>({});
+  const [videoPreview, setVideoPreview] = React.useState<{ id: string; code: string; fallback: string } | null>(null);
+  const [replacedAt, setReplacedAt] = React.useState<Record<string, number>>({});
+  const onVideoReplaced = (id: string): void => {
+    const lower = id.toLowerCase();
+    setThumbs((prev) => { const n = { ...prev }; delete n[lower]; return n; });
+    setThumbsStatus((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    setReplacedAt((prev) => ({ ...prev, [id]: Date.now() }));
+  };
   const thumbQueueRef = React.useRef<Set<string>>(new Set());
   const thumbTimerRef = React.useRef<number | null>(null);
   const thumbAbortRef = React.useRef<AbortController | null>(null);
@@ -586,7 +596,7 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   };
   const showPicCol = isAdmin || canEdit;
   const previewOn = canEdit && previewMode;
-  const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 2 : 0);
+  const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 2 : 0) + (canEdit ? 1 : 0);
 
   // Rows ask for their frames (needThumb) as they scroll into view; requests are batched
   // and all in-flight work is cancelled when the page, filters or Preview mode change.
@@ -829,7 +839,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
 
       {/* Table */}
       <div style={{ overflowX: 'auto', border: `1px solid ${tokens.color.line}`, borderRadius: tokens.radius.card, boxShadow: tokens.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: (canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150)) + (previewOn ? 730 : 0) }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: (canEdit ? (showPicCol ? 1300 : 1190) : (showPicCol ? 1260 : 1150)) + (previewOn ? 730 : 0) + (canEdit ? 84 : 0) }}>
           <thead>
             <tr>
               {canEdit && (
@@ -865,6 +875,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
               <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Video"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="15" height="10" rx="2"/><path d="M17 9l5-2v10l-5-2"/></svg></span></th>
               <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Audio"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span></th>
               <th style={{ ...th, width: 38, textAlign: 'center' }}><span title="Kualitas Konten"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span></th>
+              {canEdit && <th style={{ ...th, width: 84 }}>Video</th>}
               <th style={{ ...th, width: 60 }} />
             </tr>
           </thead>
@@ -930,7 +941,12 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                       {(s.LinkDamsShare || s.LinkVideoFromLecturer) && (
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); window.open(s.LinkDamsShare || s.LinkVideoFromLecturer || '', '_blank'); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = s.LinkDamsShare || s.LinkVideoFromLecturer || '';
+                            if (canEdit && s.LinkDamsShare) setVideoPreview({ id: s.Id, code: s.CodeNumber || s.Id.slice(0, 8), fallback: link });
+                            else window.open(link, '_blank');
+                          }}
                           style={{ fontSize: '9px', fontWeight: 400, color: tokens.color.blue, textDecoration: 'none', whiteSpace: 'nowrap', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                         >
                           open video
@@ -988,7 +1004,7 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                     )}
                     {previewOn && (
                       <td style={td}>
-                        {isDocumentRow(s) ? <span style={{ color: tokens.color.text, fontSize: tokens.font.micro }}>No audio</span> : <AudioPreview api={api} id={s.Id} />}
+                        {isDocumentRow(s) ? <span style={{ color: tokens.color.text, fontSize: tokens.font.micro }}>No audio</span> : <AudioPreview key={`${s.Id}:${replacedAt[s.Id] || 0}`} api={api} id={s.Id} />}
                       </td>
                     )}
                     <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -1069,6 +1085,18 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                         </td>
                       );
                     })}
+                    {canEdit && (
+                      <td style={td}>
+                        <VideoActions
+                          api={api}
+                          id={s.Id}
+                          code={s.CodeNumber || s.Id.slice(0, 8)}
+                          canReplace={canSelectRow(s)}
+                          onReplaced={() => onVideoReplaced(s.Id)}
+                          onError={(m) => setError(m)}
+                        />
+                      </td>
+                    )}
                     <td style={td}>
                       <GhostButton
                         type="button"
@@ -1224,6 +1252,15 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
           />
         );
       })()}
+      {videoPreview && (
+        <VideoPreviewModal
+          api={api}
+          id={videoPreview.id}
+          code={videoPreview.code}
+          fallbackUrl={videoPreview.fallback}
+          onClose={() => setVideoPreview(null)}
+        />
+      )}
       <ToastStack toasts={toasts} onClose={closeToast} />
     </div>
   );
