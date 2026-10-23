@@ -95,9 +95,11 @@ const WideNotice: React.FC<{ icon: React.ReactNode; title: string; text: React.R
   </div>
 );
 
-const PreviewCell: React.FC<{
+type ThumbState = 'loading' | 'done' | 'error';
+
+const PreviewBody: React.FC<{
   frames: Record<string, string> | undefined;
-  status: 'done' | 'error' | undefined;
+  status: ThumbState | undefined;
   isDoc: boolean;
   onRetry: () => void;
 }> = ({ frames, status, isDoc, onRetry }) => {
@@ -114,7 +116,8 @@ const PreviewCell: React.FC<{
       />
     );
   }
-  const loading = !status;
+  const loading = !status || status === 'loading';
+  const fetching = status === 'loading';
   if (!loading && (!frames || Object.keys(frames).length === 0)) {
     return <WideNotice icon={<IconVideo size={26} />} title="No preview yet" text="Frames haven't been generated for this video." />;
   }
@@ -128,10 +131,12 @@ const PreviewCell: React.FC<{
           position: 'relative', width: FRAME_W, height: FRAME_H, borderRadius: 3, overflow: 'hidden', flex: '0 0 auto', boxSizing: 'border-box',
           border: isBumper ? `2px ${missing ? 'dashed' : 'solid'} ${tokens.color.orange}` : `1px ${missing ? 'dashed' : 'solid'} ${tokens.color.line}`,
           background: tokens.color.surfaceAlt,
-          display: missing ? 'flex' : undefined, alignItems: 'center', justifyContent: 'center', color: tokens.color.text
+          display: missing || fetching ? 'flex' : undefined, alignItems: 'center', justifyContent: 'center', flexDirection: fetching ? 'column' : undefined, gap: 4, color: tokens.color.text
         };
         return (
-          <div key={k} className={loading ? 'dams-shimmer' : undefined} style={box}>
+          <div key={k} className={loading ? 'dams-shimmer' : undefined} style={box} aria-busy={fetching || undefined}>
+            {fetching && <span className="dams-spinner" role="progressbar" aria-label="Loading preview" />}
+            {fetching && isBumper && <span style={{ fontSize: 9, fontWeight: 700, color: tokens.color.blueDark }}>Loading...</span>}
             {src && <img src={src} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
             {missing && <IconVideo size={20} />}
             {!loading && (
@@ -140,6 +145,41 @@ const PreviewCell: React.FC<{
           </div>
         );
       })}
+    </div>
+  );
+};
+
+// Asks for its row's frames only once the row scrolls near the viewport.
+const PreviewCell: React.FC<{
+  id: string;
+  frames: Record<string, string> | undefined;
+  status: ThumbState | undefined;
+  isDoc: boolean;
+  onNeed: (id: string) => void;
+  onRetry: () => void;
+}> = ({ id, frames, status, isDoc, onNeed, onRetry }) => {
+  const hostRef = React.useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = hostRef.current;
+    if (!el || visible) return;
+    if (typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setVisible(true); io.disconnect(); }
+    }, { rootMargin: '300px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+
+  React.useEffect(() => {
+    if (visible && !status && !isDoc) onNeed(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, status, isDoc, id]);
+
+  return (
+    <div ref={hostRef}>
+      <PreviewBody frames={frames} status={status} isDoc={isDoc} onRetry={onRetry} />
     </div>
   );
 };
@@ -191,15 +231,16 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
     try { return window.localStorage.getItem('vbl-review-preview') === '1'; } catch { return false; }
   });
   const [thumbs, setThumbs] = React.useState<Record<string, Record<string, string>>>({});
-  const [thumbsStatus, setThumbsStatus] = React.useState<Record<string, 'done' | 'error'>>({});
-  const [thumbsRetry, setThumbsRetry] = React.useState(0);
+  const [thumbsStatus, setThumbsStatus] = React.useState<Record<string, ThumbState>>({});
+  const thumbQueueRef = React.useRef<Set<string>>(new Set());
+  const thumbTimerRef = React.useRef<number | null>(null);
+  const thumbAbortRef = React.useRef<AbortController | null>(null);
   const retryThumbs = (): void => {
     setThumbsStatus((prev) => {
       const n = { ...prev };
       items.forEach((s) => { if (n[s.Id] === 'error') delete n[s.Id]; });
       return n;
     });
-    setThumbsRetry((c) => c + 1);
   };
   const togglePreview = (): void => {
     setPreviewMode((v) => {
@@ -546,27 +587,49 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
   const previewOn = canEdit && previewMode;
   const colCount = (isAdmin ? (showPicCol ? 11 : 10) : (showPicCol ? 10 : 9)) + (previewOn ? 1 : 0);
 
-  React.useEffect(() => {
-    if (!previewOn) return;
-    const need = items.filter((s) => !isDocumentRow(s) && !thumbsStatus[s.Id]).map((s) => s.Id).slice(0, 25);
-    if (need.length === 0) return;
-    let active = true;
-    const mark = (st: 'done' | 'error'): void => {
+  // Rows ask for their frames (needThumb) as they scroll into view; requests are batched
+  // and all in-flight work is cancelled when the page, filters or Preview mode change.
+  const flushThumbs = (): void => {
+    thumbTimerRef.current = null;
+    const ids = Array.from(thumbQueueRef.current).slice(0, 8);
+    ids.forEach((id) => thumbQueueRef.current.delete(id));
+    if (thumbQueueRef.current.size > 0) thumbTimerRef.current = window.setTimeout(flushThumbs, 60);
+    if (ids.length === 0) return;
+    if (!thumbAbortRef.current) thumbAbortRef.current = new AbortController();
+    const ctrl = thumbAbortRef.current;
+    const mark = (st: ThumbState): void => {
       setThumbsStatus((prev) => {
         const n = { ...prev };
-        need.forEach((id) => { n[id] = st; });
+        ids.forEach((id) => { n[id] = st; });
         return n;
       });
     };
-    api.getThumbs(need).then((res) => {
-      if (!active) return;
+    mark('loading');
+    api.getThumbs(ids, ctrl.signal).then((res) => {
+      if (ctrl.signal.aborted) return;
       if (res === null) { mark('error'); return; }
       setThumbs((prev) => ({ ...prev, ...res }));
       mark('done');
-    }).catch(() => { if (active) mark('error'); });
-    return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewOn, items, thumbsRetry]);
+    }).catch(() => { if (!ctrl.signal.aborted) mark('error'); });
+  };
+  const needThumb = (id: string): void => {
+    thumbQueueRef.current.add(id);
+    if (thumbTimerRef.current === null) thumbTimerRef.current = window.setTimeout(flushThumbs, 120);
+  };
+
+  React.useEffect(() => {
+    setThumbsStatus((prev) => {
+      if (!Object.keys(prev).some((k) => prev[k] === 'loading')) return prev;
+      const n = { ...prev };
+      Object.keys(n).forEach((k) => { if (n[k] === 'loading') delete n[k]; });
+      return n;
+    });
+    return () => {
+      if (thumbAbortRef.current) { thumbAbortRef.current.abort(); thumbAbortRef.current = null; }
+      thumbQueueRef.current.clear();
+      if (thumbTimerRef.current !== null) { window.clearTimeout(thumbTimerRef.current); thumbTimerRef.current = null; }
+    };
+  }, [items, previewOn]);
 
   const fmtDate = (iso?: string): string => {
     if (!iso) return '';
@@ -781,7 +844,19 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
               <th style={{ ...th, width: 110 }}>Code</th>
               <th style={{ ...th, minWidth: 160 }}>Submitter</th>
               <th style={{ ...th, minWidth: 200 }}>MK / Topik</th>
-              {previewOn && <th style={{ ...th, minWidth: 470 }}>Preview</th>}
+              {previewOn && (
+                <th style={{ ...th, minWidth: 470 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    Preview
+                    {items.some((s) => thumbsStatus[s.Id] === 'loading') && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: tokens.color.blue, textTransform: 'none', letterSpacing: 0 }}>
+                        <span className="dams-spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+                        Loading {items.filter((s) => thumbsStatus[s.Id] === 'loading').length} rows...
+                      </span>
+                    )}
+                  </span>
+                </th>
+              )}
               <th style={{ ...th, width: 90 }}>Week / Sesi</th>
               <th style={{ ...th, minWidth: 140 }}>Status</th>
               {showPicCol && <th style={{ ...th, minWidth: 110 }}>PIC Editor</th>}
@@ -899,6 +974,8 @@ const K_KIND: Record<string, 'KV' | 'KA' | 'KK'> = { KualitasVideo: 'KV', Kualit
                     {previewOn && (
                       <td style={td}>
                         <PreviewCell
+                          id={s.Id}
+                          onNeed={needThumb}
                           frames={thumbs[s.Id.toLowerCase()]}
                           status={thumbsStatus[s.Id]}
                           isDoc={isDocumentRow(s)}

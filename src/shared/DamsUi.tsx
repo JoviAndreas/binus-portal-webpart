@@ -52,7 +52,9 @@ select.dams-in {
 .dams-row:hover { background: ${tokens.color.tint}; }
 @keyframes dams-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .dams-shimmer { background: linear-gradient(90deg, ${tokens.color.surfaceAlt} 0%, ${tokens.color.line} 50%, ${tokens.color.surfaceAlt} 100%); background-size: 200% 100%; animation: dams-shimmer 1.6s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .dams-shimmer { animation: none; } }
+@keyframes dams-spin { to { transform: rotate(360deg); } }
+.dams-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid ${tokens.color.line}; border-top-color: ${tokens.color.blue}; animation: dams-spin .8s linear infinite; flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) { .dams-shimmer { animation: none; } .dams-spinner { animation-duration: 2.4s; } }
 `;
 
 export const DamsStyles: React.FC = () => {

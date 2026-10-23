@@ -100,8 +100,8 @@ export class DamsApi {
     return this.getJson(`/Submissions/dosens?q=${encodeURIComponent(q)}`, signal);
   }
 
-  public getThumbs(ids: string[]): Promise<Record<string, Record<string, string>> | null> {
-    return this.getJson(`/Submissions/thumbs?ids=${ids.map(encodeURIComponent).join(',')}`);
+  public getThumbs(ids: string[], signal?: AbortSignal): Promise<Record<string, Record<string, string>> | null> {
+    return this.getJson(`/Submissions/thumbs?ids=${ids.map(encodeURIComponent).join(',')}`, signal);
   }
 
   public searchMatakuliah(q: string, signal?: AbortSignal): Promise<{ KodeMatakuliah: string; NamaMatakuliah: string | null; RumpunIlmu: string | null; Count: number }[] | null> {
