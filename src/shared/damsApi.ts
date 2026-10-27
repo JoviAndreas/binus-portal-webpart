@@ -104,22 +104,27 @@ export class DamsApi {
     return this.getJson(`/Submissions/${encodeURIComponent(id)}/preview-url`, signal);
   }
 
-  public async createReplaceSession(id: string): Promise<{ UploadUrl: string; Name: string | null; Size: number | null; ExpiresAt: string | null } | { error: string }> {
+  public async createReplaceSession(id: string, fileName: string): Promise<{ UploadUrl: string; Name: string | null; Size: number | null; ExpiresAt: string | null } | { error: string }> {
     const c = await this.getClient();
-    const r = await c.post(this.url(`/Submissions/${encodeURIComponent(id)}/replace-session`), AadHttpClient.configurations.v1, {} as IHttpClientOptions);
+    const r = await c.post(
+      this.url(`/Submissions/${encodeURIComponent(id)}/replace-session`),
+      AadHttpClient.configurations.v1,
+      { body: JSON.stringify({ FileName: fileName }) as unknown as string, headers: { 'Content-Type': 'application/json' } } as IHttpClientOptions
+    );
     if (r.status === 403) return { error: 'You can only replace videos on rows assigned to you.' };
     if (!r.ok) return { error: (await r.text().catch(() => '')) || `Could not start the upload (HTTP ${r.status}).` };
     return r.json();
   }
 
-  public async completeReplace(id: string, size: number): Promise<boolean> {
+  public async completeReplace(id: string, size: number): Promise<{ ok: boolean; message?: string }> {
     const c = await this.getClient();
     const r = await c.post(
       this.url(`/Submissions/${encodeURIComponent(id)}/replace-complete`),
       AadHttpClient.configurations.v1,
       { body: JSON.stringify({ Size: size }) as unknown as string, headers: { 'Content-Type': 'application/json' } } as IHttpClientOptions
     );
-    return r.ok;
+    if (r.ok) return { ok: true };
+    return { ok: false, message: (await r.text().catch(() => '')) || `Could not finish the replace (HTTP ${r.status}).` };
   }
 
   public async uploadFrames(id: string, frames: Record<string, Blob>): Promise<boolean> {

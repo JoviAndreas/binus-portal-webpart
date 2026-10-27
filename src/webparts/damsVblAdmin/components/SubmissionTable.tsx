@@ -109,7 +109,7 @@ const PreviewBody: React.FC<{
   if (isDoc) {
     return <WideNotice icon={<IconDoc size={26} />} title="No video preview" text="This submission is a document, not a video." />;
   }
-  if (status === 'error') {
+  if (status === 'error' && !(frames && Object.keys(frames).length > 0)) {
     return (
       <WideNotice
         danger
@@ -119,8 +119,9 @@ const PreviewBody: React.FC<{
       />
     );
   }
-  const loading = !status || status === 'loading';
-  const fetching = status === 'loading';
+  const hasFrames = !!frames && Object.keys(frames).length > 0;
+  const loading = (!status || status === 'loading') && !hasFrames;
+  const fetching = status === 'loading' && !hasFrames;
   if (!loading && (!frames || Object.keys(frames).length === 0)) {
     return <WideNotice icon={<IconVideo size={26} />} title="No preview yet" text="Frames haven't been generated for this video." />;
   }
@@ -623,18 +624,42 @@ export const SubmissionTable: React.FC<ISubmissionTableProps> = ({ api, reloadTo
       mark('done');
     }).catch(() => { if (!ctrl.signal.aborted) mark('error'); });
   };
+  // Returning to the tab re-checks rows that showed "No preview yet" (frames may have been generated since), at most once a minute.
+  const lastRecheckRef = React.useRef(0);
+  const framesRef = React.useRef(thumbs);
+  framesRef.current = thumbs;
+  React.useEffect(() => {
+    if (!previewOn) return undefined;
+    const recheck = (): void => {
+      if (document.visibilityState === 'hidden' || Date.now() - lastRecheckRef.current < 60000) return;
+      lastRecheckRef.current = Date.now();
+      setThumbsStatus((prev) => {
+        const n = { ...prev };
+        let changed = false;
+        Object.keys(n).forEach((id) => {
+          const f = framesRef.current[id.toLowerCase()];
+          if (n[id] === 'done' && (!f || Object.keys(f).length === 0)) { delete n[id]; changed = true; }
+        });
+        return changed ? n : prev;
+      });
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [previewOn]);
+
   const needThumb = (id: string): void => {
     thumbQueueRef.current.add(id);
     if (thumbTimerRef.current === null) thumbTimerRef.current = window.setTimeout(flushThumbs, 120);
   };
 
+  // Every list load (page, filter, reload) refreshes the frames of the visible rows. Frames already on screen
+  // stay visible until the fresh ones arrive, so a replace made elsewhere shows up without a full reload.
   React.useEffect(() => {
-    setThumbsStatus((prev) => {
-      if (!Object.keys(prev).some((k) => prev[k] === 'loading')) return prev;
-      const n = { ...prev };
-      Object.keys(n).forEach((k) => { if (n[k] === 'loading') delete n[k]; });
-      return n;
-    });
+    setThumbsStatus((prev) => (Object.keys(prev).length === 0 ? prev : {}));
     return () => {
       if (thumbAbortRef.current) { thumbAbortRef.current.abort(); thumbAbortRef.current = null; }
       thumbQueueRef.current.clear();

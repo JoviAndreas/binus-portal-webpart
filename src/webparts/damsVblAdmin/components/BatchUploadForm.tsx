@@ -5,6 +5,7 @@ import { Combobox } from '../../../shared/Combobox';
 import { sanitizeName, parseFilename, buildDescription, buildTags, mapCampus, fuzzyPick } from '../../../shared/sanitize';
 import { Card, CardTitle, Field, TextInput, PrimaryButton, GhostButton, MessageBar } from '../../../shared/DamsUi';
 import { IAutofill, IUploadSessionRequest } from '../../../shared/damsTypes';
+import { validateVideoFile, NEW_UPLOAD_EXT } from '../../../shared/videoValidation';
 // IUploadSessionRequest is used in buildRequestFrom return type
 
 // Generic live-search dropdown with AbortController race prevention
@@ -355,11 +356,21 @@ const DropZone: React.FC<{ file: File | null; onFile: (f: File | null) => void; 
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  const [fileError, setFileError] = React.useState('');
+  // One gate for both drag-and-drop and the file dialog.
+  const acceptFile = (f: File | null | undefined): void => {
+    if (!f) { setFileError(''); onFile(null); return; }
+    validateVideoFile(f, { allowedExt: NEW_UPLOAD_EXT }).then((err) => {
+      if (err) { setFileError(err); return; }
+      setFileError('');
+      onFile(f);
+    }).catch(() => setFileError('Could not read this file.'));
+  };
+
   const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f && f.type === 'video/mp4') onFile(f);
+    acceptFile(e.dataTransfer.files[0]);
   };
 
   return (
@@ -421,8 +432,11 @@ const DropZone: React.FC<{ file: File | null; onFile: (f: File | null) => void; 
             &#x2715;
           </button>
         )}
-        <input ref={inputRef} type="file" accept="video/mp4" style={{ display: 'none' }} onChange={(e) => { onFile(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
+        <input ref={inputRef} type="file" accept="video/mp4,.mp4" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.currentTarget.value = ''; acceptFile(f); }} />
       </div>
+      {fileError && !file && (
+        <div role="alert" style={{ marginTop: 6, fontSize: tokens.font.label, color: tokens.color.danger, fontWeight: 600 }}>{fileError}</div>
+      )}
       {previewUrl && (
         <video
           src={previewUrl}

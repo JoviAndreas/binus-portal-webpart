@@ -4,11 +4,11 @@ import { DamsApi } from '../../../shared/damsApi';
 import { GhostButton, PrimaryButton } from '../../../shared/DamsUi';
 import { uploadChunked } from '../../../shared/chunkUpload';
 import { extractFrames } from '../../../shared/frames';
+import { validateVideoFile, extOf, REPLACE_EXT } from '../../../shared/videoValidation';
 
 type Stage = 'confirm' | 'uploading' | 'frames' | 'done' | 'error';
 
 const mb = (n: number): string => `${(n / 1048576).toFixed(n >= 104857600 ? 0 : 1)} MB`;
-const extOf = (name: string): string => { const m = /\.([A-Za-z0-9]+)$/.exec(name); return m ? m[1].toLowerCase() : ''; };
 
 const Step: React.FC<{ state: 'todo' | 'active' | 'done' | 'failed'; title: string; detail?: string }> = ({ state, title, detail }) => {
   const color = state === 'done' ? tokens.color.success : state === 'failed' ? tokens.color.danger : state === 'active' ? tokens.color.blue : tokens.color.line;
@@ -85,11 +85,12 @@ export const ReplaceVideoModal: React.FC<{
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
-      const session = await api.createReplaceSession(id);
+      const session = await api.createReplaceSession(id, file.name);
       if ('error' in session) throw new Error(session.error);
       await uploadChunked(file, session.UploadUrl, (p) => { setLoaded(p.loaded); setSpeed(p.speedBps); }, ctrl.signal);
+      const done = await api.completeReplace(id, file.size);
+      if (!done.ok) throw new Error(done.message);
       setReplaced(true);
-      await api.completeReplace(id, file.size);
       await runFrames();
     } catch (e) {
       if ((e as Error).name === 'AbortError') { onClose(false); return; }
@@ -102,8 +103,16 @@ export const ReplaceVideoModal: React.FC<{
   const cancelUpload = (): void => { if (abortRef.current) abortRef.current.abort(); };
 
   const curExt = current && current.name ? extOf(current.name) : '';
-  const newExt = extOf(file.name);
-  const extDiffers = !!curExt && !!newExt && curExt !== newExt;
+
+  // Only a video of the same type as the current file may replace it.
+  const [invalid, setInvalid] = React.useState('');
+  React.useEffect(() => {
+    if (!current || !current.name) return;
+    if (REPLACE_EXT.indexOf(curExt) < 0) { setInvalid('Only video files can be replaced. The current file on this row is not a video.'); return; }
+    let active = true;
+    validateVideoFile(file, { allowedExt: REPLACE_EXT, mustMatchExt: curExt }).then((err) => { if (active) setInvalid(err || ''); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [current, file, curExt]);
   const pct = file.size > 0 ? Math.min(100, (loaded / file.size) * 100) : 0;
 
   const uploadState = stage === 'confirm' ? 'todo' : stage === 'uploading' ? 'active' : stage === 'error' && failedAt === 'upload' ? 'failed' : 'done';
@@ -126,14 +135,14 @@ export const ReplaceVideoModal: React.FC<{
             <p style={{ margin: '10px 0 0', fontSize: tokens.font.small, color: tokens.color.text, lineHeight: 1.5 }}>
               The file name and share links stay the same. The previous version stays in SharePoint version history. Preview frames are regenerated.
             </p>
-            {extDiffers && (
-              <div style={{ background: '#FFF6E5', borderLeft: `3px solid ${tokens.color.orange}`, padding: '7px 10px', fontSize: tokens.font.micro, margin: '10px 0 0', color: tokens.color.ink }}>
-                The new file is .{newExt} but the current one is .{curExt}. It will keep the name {current && current.name}, so players may not recognise it.
+            {invalid && (
+              <div role="alert" style={{ background: tokens.color.dangerBg, color: tokens.color.danger, borderLeft: `3px solid ${tokens.color.danger}`, padding: '7px 10px', fontSize: tokens.font.small, fontWeight: 600, margin: '10px 0 0' }}>
+                {invalid}
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: tokens.space.sm, marginTop: 18 }}>
               <GhostButton type="button" onClick={() => onClose(false)}>Cancel</GhostButton>
-              <PrimaryButton type="button" onClick={() => { void runUpload(); }}>Replace video</PrimaryButton>
+              <PrimaryButton type="button" disabled={!!invalid || !current} onClick={() => { void runUpload(); }}>Replace video</PrimaryButton>
             </div>
           </>
         )}
